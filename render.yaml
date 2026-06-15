@@ -5,10 +5,3 @@ services:
     plan: free
     buildCommand: npm install
     startCommand: npm start
-    envVars:
-      - key: DATA_DIR
-        value: /opt/render/project/src/data
-    disk:
-      name: portfolio-data
-      mountPath: /opt/render/project/src/data
-      sizeGB: 1
