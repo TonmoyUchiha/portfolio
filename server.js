@@ -14,24 +14,35 @@ app.use(cors());
 app.use(express.json());
 
 /* ── MONGODB CONNECTION ── */
-const MONGODB_URI = process.env.MONGODB_URI;
+let cachedConnection = null;
 
-if (!MONGODB_URI) {
-  console.error('FATAL: MONGODB_URI environment variable is not set.');
-  console.error('Set it before starting: set MONGODB_URI=mongodb+srv://...');
-  process.exit(1);
+async function connectToDatabase() {
+  if (cachedConnection && mongoose.connection.readyState === 1) {
+    return cachedConnection;
+  }
+  const MONGODB_URI = process.env.MONGODB_URI;
+  if (!MONGODB_URI) {
+    throw new Error('MONGODB_URI environment variable is not set.');
+  }
+  cachedConnection = await mongoose.connect(MONGODB_URI, {
+    maxPoolSize: 10,
+    serverSelectionTimeoutMS: 5000,
+    socketTimeoutMS: 45000,
+  });
+  console.log('✓ MongoDB connected');
+  return cachedConnection;
 }
 
-mongoose.connect(MONGODB_URI, {
-  maxPoolSize: 10,
-  serverSelectionTimeoutMS: 5000,
-  socketTimeoutMS: 45000,
-})
-  .then(() => console.log('✓ MongoDB connected'))
-  .catch(err => {
-    console.error('✗ MongoDB connection error:', err.message);
-    process.exit(1);
-  });
+// Database connection middleware for API routes
+app.use('/api', async (req, res, next) => {
+  try {
+    await connectToDatabase();
+    next();
+  } catch (err) {
+    console.error('✗ Database connection error:', err.message);
+    res.status(500).json({ error: 'Database connection failed: ' + err.message });
+  }
+});
 
 /* ── MONGOOSE MODELS ── */
 const DataSchema = new mongoose.Schema({ data: Object }, { strict: false });
