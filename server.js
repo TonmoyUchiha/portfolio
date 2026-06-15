@@ -1,32 +1,93 @@
+require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const multer = require('multer');
+const compression = require('compression');
 const path = require('path');
 
 const app = express();
+
+/* ── MIDDLEWARE ── */
+app.use(compression());          // Gzip all responses
 app.use(cors());
 app.use(express.json());
 
-// MONGODB CONNECTION
-const MONGODB_URI = process.env.MONGODB_URI || "mongodb+srv://tonmoyuchiha_db_user:lFKz7iaRDeTOqEOo@cluster0.vo9nqo4.mongodb.net/portfolio?appName=Cluster0";
+/* ── MONGODB CONNECTION ── */
+const MONGODB_URI = process.env.MONGODB_URI;
 
-mongoose.connect(MONGODB_URI)
-  .then(() => console.log('MongoDB connected successfully'))
-  .catch(err => console.error('MongoDB connection error:', err));
+if (!MONGODB_URI) {
+  console.error('FATAL: MONGODB_URI environment variable is not set.');
+  console.error('Set it before starting: set MONGODB_URI=mongodb+srv://...');
+  process.exit(1);
+}
 
-// MONGOOSE MODELS
+mongoose.connect(MONGODB_URI, {
+  maxPoolSize: 10,
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 45000,
+})
+  .then(() => console.log('✓ MongoDB connected'))
+  .catch(err => {
+    console.error('✗ MongoDB connection error:', err.message);
+    process.exit(1);
+  });
+
+/* ── MONGOOSE MODELS ── */
 const DataSchema = new mongoose.Schema({ data: Object }, { strict: false });
 const DataModel = mongoose.models.PortfolioData || mongoose.model('PortfolioData', DataSchema);
 
 const CVSchema = new mongoose.Schema({ contentType: String, data: Buffer });
 const CVModel = mongoose.models.CV || mongoose.model('CV', CVSchema);
 
-// GET DATA API
+/* ═══════════════════════════════════════════
+   IN-MEMORY CACHE
+   Avoids hitting MongoDB on every visitor page load.
+   Cache is busted on POST /api/data so admin changes
+   appear instantly.
+   ═══════════════════════════════════════════ */
+let cache = {
+  data: null,
+  timestamp: 0,
+  TTL: 5 * 60 * 1000  // 5 minutes
+};
+
+function isCacheValid() {
+  return cache.data !== null && (Date.now() - cache.timestamp) < cache.TTL;
+}
+
+function bustCache() {
+  cache.data = null;
+  cache.timestamp = 0;
+}
+
+/* ── HEALTH ENDPOINT ── */
+app.get('/api/health', (req, res) => {
+  const dbState = mongoose.connection.readyState;
+  const states = { 0: 'disconnected', 1: 'connected', 2: 'connecting', 3: 'disconnecting' };
+  res.json({
+    status: dbState === 1 ? 'healthy' : 'degraded',
+    database: states[dbState] || 'unknown',
+    cacheAge: cache.data ? `${Math.round((Date.now() - cache.timestamp) / 1000)}s` : 'empty',
+    uptime: `${Math.round(process.uptime())}s`
+  });
+});
+
+/* ── GET DATA API (with cache) ── */
 app.get('/api/data', async (req, res) => {
   try {
-    const doc = await DataModel.findOne({});
+    // Serve from cache if valid
+    if (isCacheValid()) {
+      return res.json(cache.data);
+    }
+
+    // Lean query — returns plain JS object, skips Mongoose hydration
+    const doc = await DataModel.findOne({}).lean();
+
     if (doc && doc.data) {
+      // Populate cache
+      cache.data = doc.data;
+      cache.timestamp = Date.now();
       res.json(doc.data);
     } else {
       res.status(404).json({ error: 'No data found' });
@@ -36,19 +97,27 @@ app.get('/api/data', async (req, res) => {
   }
 });
 
-// SAVE DATA API
+/* ── SAVE DATA API (busts cache) ── */
 app.post('/api/data', async (req, res) => {
   try {
     await DataModel.findOneAndUpdate({}, { data: req.body }, { upsert: true, new: true });
+
+    // Bust cache so next GET serves fresh data
+    bustCache();
+
+    // Also warm the cache immediately
+    cache.data = req.body;
+    cache.timestamp = Date.now();
+
     res.json({ success: true, message: 'Data saved to MongoDB' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// CV UPLOAD API (Stores in MongoDB as Buffer)
+/* ── CV UPLOAD API (Stores in MongoDB as Buffer) ── */
 const storage = multer.memoryStorage();
-const upload = multer({ storage: storage });
+const upload = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 } }); // 10MB limit
 
 app.post('/api/upload-cv', upload.single('cv'), async (req, res) => {
   try {
@@ -63,26 +132,36 @@ app.post('/api/upload-cv', upload.single('cv'), async (req, res) => {
   }
 });
 
-// CV DOWNLOAD API
+/* ── CV DOWNLOAD API ── */
 app.get('/api/cv', async (req, res) => {
   try {
-    const cv = await CVModel.findOne({});
+    const cv = await CVModel.findOne({}).lean();
     if (!cv || !cv.data) return res.status(404).send('No CV found');
     res.set('Content-Type', cv.contentType);
+    res.set('Content-Disposition', 'inline; filename="Tonmoy_CV.pdf"');
     res.send(cv.data);
   } catch (err) {
     res.status(500).send(err.message);
   }
 });
 
-// EXPORT FOR VERCEL
+/* ── EXPORT FOR VERCEL ── */
 module.exports = app;
 
-// RUN SERVER LOCALLY IF NOT ON VERCEL
+/* ── RUN SERVER LOCALLY IF NOT ON VERCEL ── */
 if (require.main === module) {
-  app.use(express.static(__dirname));
+  // Serve static files with caching headers
+  app.use(express.static(__dirname, {
+    maxAge: '1d',
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('.html')) {
+        res.setHeader('Cache-Control', 'no-cache');
+      }
+    }
+  }));
+
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`✓ Server running on http://localhost:${PORT}`);
   });
 }
