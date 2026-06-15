@@ -10,15 +10,18 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+const dataDir = process.env.DATA_DIR || __dirname;
+const uploadPath = path.join(dataDir, 'uploads');
+const dataFilePath = path.join(dataDir, 'data.json');
+
 // Serve static files (the uploads folder and the current directory)
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', express.static(uploadPath));
 app.use(express.static(__dirname)); // To serve index.html
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    const uploadPath = path.join(__dirname, 'uploads');
     if (!fs.existsSync(uploadPath)) {
-      fs.mkdirSync(uploadPath);
+      fs.mkdirSync(uploadPath, { recursive: true });
     }
     cb(null, uploadPath);
   },
@@ -28,8 +31,6 @@ const storage = multer.diskStorage({
   }
 });
 const upload = multer({ storage: storage });
-
-const dataFilePath = path.join(__dirname, 'data.json');
 
 app.get('/api/data', (req, res) => {
   if (fs.existsSync(dataFilePath)) {
