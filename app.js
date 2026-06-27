@@ -282,13 +282,25 @@ function renderPortfolio() {
       </div>`).join('');
 
   /* What's Next */
+  const svgIcons = {
+    "🎓": `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width: 24px; height: 24px; color: var(--accent);"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c0 2 2 3 6 3s6-1 6-3v-5"/></svg>`,
+    "🔬": `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width: 24px; height: 24px; color: var(--accent);"><path d="M6 18h8M3 22h18M14 22a7 7 0 1 0-12-5M14 14h2M14 10h4M14 6h6M12 21a2 2 0 0 0 2-2V3a1 1 0 0 0-1-1h-2a1 1 0 0 0-1 1v16a2 2 0 0 0 2 2z"/></svg>`,
+    "💼": `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width: 24px; height: 24px; color: var(--accent);"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>`
+  };
+
   $('next-el').innerHTML =
-    (d.next || []).map(n => `
-      <div class="next-card">
-        <div class="next-emoji">${n.emoji}</div>
+    (d.next || []).map(n => {
+      const icon = svgIcons[n.emoji] || `<span style="font-size: 1.6rem;">${n.emoji}</span>`;
+      return `
+      <div class="next-card tilt-card">
+        <div class="card-shine"></div>
+        <div class="next-icon-container" style="margin-bottom: 1.5rem; display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; border-radius: 12px; background: rgba(196, 163, 90, 0.04); border: 1px solid rgba(196, 163, 90, 0.1);">
+          ${icon}
+        </div>
         <div class="next-label">${esc(n.label)}</div>
         <div class="next-text">${esc(n.text)}</div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
 
   /* Contact */
   $('contact-title-el').textContent = d.contact.title;
@@ -297,6 +309,22 @@ function renderPortfolio() {
     <a class="contact-link email magnetic" href="mailto:${esc(d.contact.email)}">✉ ${esc(d.contact.email)}</a>
     <a class="contact-link social magnetic" href="${esc(d.contact.linkedin)}" target="_blank" rel="noopener">in LinkedIn</a>
     <a class="contact-link social magnetic" href="${esc(d.contact.github)}" target="_blank" rel="noopener">⌥ GitHub</a>`;
+
+  /* Sidebar Social Links (Dynamic) */
+  const sidebarLinksEl = $('sidebar-links-el');
+  if (sidebarLinksEl) {
+    sidebarLinksEl.innerHTML = `
+      <a class="sidebar-link magnetic" href="mailto:${esc(d.contact.email)}" title="Email" aria-label="Email">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+      </a>
+      <a class="sidebar-link magnetic" href="${esc(d.contact.linkedin)}" target="_blank" rel="noopener" title="LinkedIn" aria-label="LinkedIn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg>
+      </a>
+      <a class="sidebar-link magnetic" href="${esc(d.contact.github)}" target="_blank" rel="noopener" title="GitHub" aria-label="GitHub">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+      </a>
+    `;
+  }
 
   /* Footer */
   $('footer-el').textContent = d.footer;
@@ -1488,16 +1516,36 @@ function removeItem(key, idx) {
 
 /* ── Modal ── */
 function openAdmin() {
-  const pwd = prompt("Enter Admin Password:");
-  if (pwd !== "tonmoy5663") {
-    alert("Incorrect Password!");
-    return;
-  }
-  buildAdminUI();
-  $('adminModal').classList.add('open');
+  $('admin-password-input').value = '';
+  $('password-error').style.display = 'none';
+  $('passwordModal').classList.add('open');
   document.body.style.overflow = 'hidden';
   if (lenis) lenis.stop();
 }
+
+function closePasswordModal() {
+  $('passwordModal').classList.remove('open');
+  document.body.style.overflow = '';
+  if (lenis) lenis.start();
+}
+
+function submitPassword() {
+  const pwd = $('admin-password-input').value;
+  if (pwd === "tonmoy5663") {
+    closePasswordModal();
+    buildAdminUI();
+    $('adminModal').classList.add('open');
+    document.body.style.overflow = 'hidden';
+    if (lenis) lenis.stop();
+  } else {
+    $('password-error').style.display = 'block';
+  }
+}
+
+// Bind to window for HTML event handlers
+window.openAdmin = openAdmin;
+window.closePasswordModal = closePasswordModal;
+window.submitPassword = submitPassword;
 
 function closeAdmin() {
   $('adminModal').classList.remove('open');
@@ -1563,6 +1611,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Close modal on overlay click
   $('adminModal').addEventListener('click', function (e) {
     if (e.target === this) closeAdmin();
+  });
+  $('passwordModal').addEventListener('click', function (e) {
+    if (e.target === this) closePasswordModal();
   });
 
   // Handle resize — refresh ScrollTrigger

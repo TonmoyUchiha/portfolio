@@ -36,6 +36,12 @@
   </div>
 </div>
 
+<!-- ═══ FLOATING SOCIAL SIDEBAR ═══ -->
+<div class="social-sidebar" id="social-sidebar">
+  <div class="sidebar-indicator"></div>
+  <div class="sidebar-links" id="sidebar-links-el"></div>
+</div>
+
 <!-- ═══ CUSTOM CURSOR ═══ -->
 <div class="cursor-dot" id="cursor-dot"></div>
 <div class="cursor-follower" id="cursor-follower"></div>
@@ -188,6 +194,25 @@
   <footer id="footer-el"></footer>
 
 </main>
+
+<!-- ═══ PASSWORD MODAL ═══ -->
+<div class="modal-overlay" id="passwordModal">
+  <div class="modal" style="max-width: 400px; margin: 10vh auto;">
+    <div class="modal-header">
+      <div class="modal-title">🔐 Unlock Admin Panel</div>
+      <button class="modal-close" onclick="closePasswordModal()">✕</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="admin-password-input">Enter Admin Password</label>
+      <input type="password" class="form-input" id="admin-password-input" placeholder="••••••••" onkeydown="if(event.key === 'Enter') submitPassword()">
+      <div id="password-error" style="color: #9B1D1D; font-size: 0.75rem; margin-top: 0.5rem; display: none; font-family: 'JetBrains Mono', monospace;">Incorrect Password!</div>
+    </div>
+    <div style="display: flex; gap: 10px; margin-top: 1.5rem;">
+      <button class="save-btn" onclick="submitPassword()">Unlock</button>
+      <button class="reset-btn" style="padding: 10px 20px; font-size: 0.78rem;" onclick="closePasswordModal()">Cancel</button>
+    </div>
+  </div>
+</div>
 
 <!-- ═══ ADMIN MODAL ═══ -->
 <div class="modal-overlay" id="adminModal">
