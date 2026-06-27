@@ -3,40 +3,63 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Md. Al Imran Tonmoy — Portfolio</title>
+<title>Md. Al Imran Tonmoy — Creative Developer Portfolio</title>
 <meta name="description" content="Portfolio of Md. Al Imran Tonmoy — Project Coordinator, ERP Specialist, System Analyst, and Odoo Certified Leader based in Dhaka, Bangladesh.">
-<meta name="theme-color" content="#050508">
+<meta name="theme-color" content="#06060b">
 <meta property="og:title" content="Md. Al Imran Tonmoy — Portfolio">
 <meta property="og:description" content="Project Coordinator · ERP Specialist · System Analyst — Turning business chaos into structured systems.">
 <meta property="og:type" content="website">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
-<!-- NAV -->
-<nav>
+<!-- ═══ PRELOADER ═══ -->
+<div class="preloader" id="preloader">
+  <div class="preloader-half preloader-half--top"></div>
+  <div class="preloader-half preloader-half--bottom"></div>
+  <div class="preloader-content" id="preloader-content">
+    <div class="preloader-name" id="preloader-name">
+      <span class="preloader-letter">T</span>
+      <span class="preloader-letter">O</span>
+      <span class="preloader-letter">N</span>
+      <span class="preloader-letter">M</span>
+      <span class="preloader-letter">O</span>
+      <span class="preloader-letter">Y</span>
+    </div>
+    <div class="preloader-counter" id="preloader-counter">0%</div>
+    <div class="preloader-bar">
+      <div class="preloader-bar-fill" id="preloader-bar-fill"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ CUSTOM CURSOR ═══ -->
+<div class="cursor-dot" id="cursor-dot"></div>
+<div class="cursor-follower" id="cursor-follower"></div>
+
+<!-- ═══ NAVIGATION ═══ -->
+<nav class="main-nav" id="main-nav">
   <div class="nav-inner">
-    <div class="nav-logo">TONMOY</div>
-    <ul class="nav-links">
+    <a class="nav-logo" id="nav-logo">TONMOY</a>
+    <ul class="nav-links" id="nav-links-list">
       <li><a href="#about">About</a></li>
       <li><a href="#skills">Skills</a></li>
       <li><a href="#experience">Experience</a></li>
       <li><a href="#projects">Projects</a></li>
-      <li><a href="#education">Education</a></li>
       <li><a href="#contact-section">Contact</a></li>
     </ul>
+    <button class="admin-trigger" id="admin-trigger" onclick="openAdmin()" aria-label="Admin panel">⚙</button>
     <button class="hamburger" id="hamburger" aria-label="Toggle menu">
       <span></span><span></span><span></span>
     </button>
-    <button class="admin-btn" onclick="openAdmin()">⚙ Admin</button>
   </div>
 </nav>
 
-<!-- MOBILE NAV OVERLAY -->
-<div class="mobile-nav-overlay" id="mobileNavOverlay">
+<!-- ═══ MOBILE NAV ═══ -->
+<div class="mobile-nav" id="mobile-nav">
   <a href="#about">About</a>
   <a href="#skills">Skills</a>
   <a href="#experience">Experience</a>
@@ -45,124 +68,128 @@
   <a href="#contact-section">Contact</a>
 </div>
 
-<!-- HERO -->
-<section id="hero">
-  <canvas id="particles-canvas"></canvas>
-  <div class="hero-grid-bg"></div>
-  <div class="hero-glow"></div>
-  <div class="hero-content">
-    <h1 class="hero-name" id="hero-name-el">
-      <!-- skeleton placeholder -->
-      <span class="skeleton skeleton-heading" style="display:inline-block;width:70%"></span>
-    </h1>
-    <div class="hero-subtitle">
-      <span id="typewriter"></span><span class="cursor">|</span>
-    </div>
-    <div class="hero-tagline" id="hero-tagline-el">
-      <span class="skeleton skeleton-text" style="display:inline-block;width:90%"></span>
-    </div>
-    <div class="btn-group">
-      <a href="#projects" class="btn-primary" id="hero-cta1-el">View My Work</a>
-      <a href="#" class="btn-ghost" id="hero-cta2-el">Download CV</a>
-    </div>
-  </div>
-</section>
+<!-- ═══════════════════════════════════════════
+     MAIN CONTENT — Scroll-driven experience
+     ═══════════════════════════════════════════ -->
+<main id="smooth-content">
 
-<!-- ABOUT -->
-<div class="section-wrap reveal" id="about" data-nav-section="about">
-  <div class="section-label">// 01. ABOUT</div>
-  <div class="section-title" id="about-title-el">Who I Am</div>
-  <div class="divider"></div>
-  <div class="about-grid">
-    <div class="about-text" id="about-text-el">
-      <div class="skeleton skeleton-text full"></div>
-      <div class="skeleton skeleton-text full"></div>
-      <div class="skeleton skeleton-text short"></div>
-    </div>
-    <div>
-      <div style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:var(--muted);margin-bottom:0.75rem;letter-spacing:1.5px;text-transform:uppercase">Interests & Passions</div>
-      <div class="tag-grid stagger-children" id="interests-el">
-        <div class="skeleton" style="width:90px;height:28px;border-radius:6px"></div>
-        <div class="skeleton" style="width:110px;height:28px;border-radius:6px"></div>
-        <div class="skeleton" style="width:80px;height:28px;border-radius:6px"></div>
+  <!-- ═══ HERO ═══ -->
+  <section class="section hero-section" id="hero">
+    <div class="hero-bg">
+      <div class="hero-glow hero-glow--1"></div>
+      <div class="hero-glow hero-glow--2"></div>
+      <div class="hero-glow hero-glow--3"></div>
+      <div class="hero-grid"></div>
+      <div class="hero-floating" id="hero-floating">
+        <div class="float-el float-circle-1"></div>
+        <div class="float-el float-circle-2"></div>
+        <div class="float-el float-line-1"></div>
+        <div class="float-el float-line-2"></div>
+        <div class="float-el float-dot-1"></div>
+        <div class="float-el float-dot-2"></div>
+        <div class="float-el float-cross"></div>
       </div>
     </div>
-  </div>
-</div>
 
-<!-- SKILLS -->
-<div class="section-wrap reveal" id="skills" data-nav-section="skills">
-  <div class="section-label">// 02. SKILLS</div>
-  <div class="section-title">What I Do</div>
-  <div class="divider"></div>
-  <div class="skills-grid stagger-children" id="skills-el">
-    <div class="skeleton-card"></div>
-    <div class="skeleton-card"></div>
-    <div class="skeleton-card"></div>
-    <div class="skeleton-card"></div>
-  </div>
-</div>
+    <div class="hero-content" id="hero-content">
+      <h1 class="hero-name" id="hero-name-el"></h1>
+      <div class="hero-titles">
+        <span id="typewriter"></span><span class="tw-cursor">|</span>
+      </div>
+      <p class="hero-tagline" id="hero-tagline-el"></p>
+      <div class="hero-cta">
+        <a href="#projects" class="btn btn-primary magnetic" id="hero-cta1-el">View My Work</a>
+        <a href="#" class="btn btn-outline magnetic" id="hero-cta2-el">Download CV</a>
+      </div>
+    </div>
 
-<!-- EXPERIENCE -->
-<div class="section-wrap reveal" id="experience" data-nav-section="experience">
-  <div class="section-label">// 03. EXPERIENCE</div>
-  <div class="section-title">Where I've Been</div>
-  <div class="divider"></div>
-  <div class="timeline" id="experience-el">
-    <div class="skeleton skeleton-text full" style="height:1.5em;margin-bottom:1rem"></div>
-    <div class="skeleton skeleton-text" style="width:70%"></div>
-  </div>
-</div>
+    <div class="scroll-indicator" id="scroll-indicator">
+      <span>Scroll</span>
+      <div class="scroll-line"></div>
+    </div>
+  </section>
 
-<!-- PROJECTS -->
-<div class="section-wrap reveal" id="projects" data-nav-section="projects">
-  <div class="section-label">// 04. PROJECTS</div>
-  <div class="section-title">What I've Built</div>
-  <div class="divider"></div>
-  <div class="projects-grid stagger-children" id="projects-el">
-    <div class="skeleton-card"></div>
-    <div class="skeleton-card"></div>
-    <div class="skeleton-card"></div>
-  </div>
-</div>
+  <!-- ═══ ABOUT ═══ -->
+  <section class="section about-section" id="about">
+    <div class="section-inner">
+      <div class="section-label">01 — About</div>
+      <h2 class="section-heading" id="about-title-el">Who I Am</h2>
+      <div class="about-content">
+        <div class="about-text" id="about-text-el"></div>
+        <div class="about-interests">
+          <div class="interests-label">Interests & Passions</div>
+          <div class="interests-grid" id="interests-el"></div>
+        </div>
+      </div>
+    </div>
+  </section>
 
-<!-- EDUCATION -->
-<div class="section-wrap reveal" id="education" data-nav-section="education">
-  <div class="section-label">// 05. EDUCATION</div>
-  <div class="section-title">Where I've Studied</div>
-  <div class="divider"></div>
-  <div class="edu-grid stagger-children" id="education-el">
-    <div class="skeleton-card" style="height:130px"></div>
-    <div class="skeleton-card" style="height:130px"></div>
-    <div class="skeleton-card" style="height:130px"></div>
-  </div>
-</div>
+  <!-- ═══ SKILLS ═══ -->
+  <section class="section skills-section" id="skills">
+    <div class="section-inner">
+      <div class="section-label">02 — Skills</div>
+      <h2 class="section-heading">What I Do</h2>
+      <div class="skills-grid" id="skills-el"></div>
+    </div>
+  </section>
 
-<!-- NEXT -->
-<div class="section-wrap reveal" id="next" data-nav-section="next">
-  <div class="section-label">// 06. WHAT'S NEXT</div>
-  <div class="section-title">Currently Pursuing</div>
-  <div class="divider"></div>
-  <div class="next-grid stagger-children" id="next-el">
-    <div class="skeleton-card" style="height:140px"></div>
-    <div class="skeleton-card" style="height:140px"></div>
-  </div>
-</div>
+  <!-- ═══ EXPERIENCE ═══ -->
+  <section class="section experience-section" id="experience">
+    <div class="section-inner">
+      <div class="section-label">03 — Experience</div>
+      <h2 class="section-heading">Where I've Been</h2>
+      <div class="timeline" id="experience-el">
+        <div class="timeline-line"><div class="timeline-line-fill" id="timeline-line-fill"></div></div>
+      </div>
+    </div>
+  </section>
 
-<!-- CONTACT -->
-<div class="section-wrap reveal" id="contact-section" data-nav-section="contact-section">
-  <div class="section-label" style="text-align:center">// 07. LET'S TALK</div>
-  <div class="section-title" style="text-align:center" id="contact-title-el">Get In Touch</div>
-  <div class="divider" style="margin:0 auto 2rem"></div>
-  <div class="contact-tagline" id="contact-tagline-el">
-    <span class="skeleton skeleton-text" style="display:inline-block;width:80%"></span>
-  </div>
-  <div class="contact-links" id="contact-links-el"></div>
-</div>
+  <!-- ═══ PROJECTS — Horizontal Pinned Gallery ═══ -->
+  <section class="section projects-section" id="projects">
+    <div class="projects-header">
+      <div class="section-label">04 — Projects</div>
+      <h2 class="section-heading">Selected Work</h2>
+    </div>
+    <div class="projects-track" id="projects-el"></div>
+    <div class="projects-progress">
+      <div class="projects-progress-bar" id="projects-progress-bar"></div>
+    </div>
+  </section>
 
-<footer id="footer-el"></footer>
+  <!-- ═══ EDUCATION ═══ -->
+  <section class="section education-section" id="education">
+    <div class="section-inner">
+      <div class="section-label">05 — Education</div>
+      <h2 class="section-heading">Academic Journey</h2>
+      <div class="edu-grid" id="education-el"></div>
+    </div>
+  </section>
 
-<!-- ADMIN MODAL -->
+  <!-- ═══ WHAT'S NEXT ═══ -->
+  <section class="section next-section" id="next">
+    <div class="section-inner">
+      <div class="section-label">06 — What's Next</div>
+      <h2 class="section-heading">Currently Pursuing</h2>
+      <div class="next-grid" id="next-el"></div>
+    </div>
+  </section>
+
+  <!-- ═══ CONTACT ═══ -->
+  <section class="section contact-section" id="contact-section">
+    <div class="section-inner contact-inner">
+      <div class="section-label">07 — Contact</div>
+      <h2 class="contact-heading" id="contact-title-el">Let's Talk</h2>
+      <p class="contact-tagline" id="contact-tagline-el"></p>
+      <div class="contact-links" id="contact-links-el"></div>
+    </div>
+  </section>
+
+  <!-- ═══ FOOTER ═══ -->
+  <footer id="footer-el"></footer>
+
+</main>
+
+<!-- ═══ ADMIN MODAL ═══ -->
 <div class="modal-overlay" id="adminModal">
   <div class="modal">
     <div class="modal-header">
@@ -174,13 +201,18 @@
     <div class="admin-footer">
       <button class="save-btn" onclick="saveAll()">💾 Save All Changes</button>
       <button class="reset-btn" onclick="resetDefaults()">↺ Reset to Defaults</button>
-      <span style="font-size:0.73rem;color:var(--muted);font-family:'JetBrains Mono',monospace">All data saved to MongoDB</span>
+      <span style="font-size:0.7rem;color:var(--text-muted);font-family:'JetBrains Mono',monospace">All data saved to MongoDB</span>
     </div>
   </div>
 </div>
 
 <div class="toast" id="toast"></div>
 
+<!-- ═══ EXTERNAL LIBRARIES (CDN) ═══ -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script src="https://unpkg.com/lenis@1.1.13/dist/lenis.min.js"></script>
+<script src="https://unpkg.com/split-type@0.3.4/umd/index.min.js"></script>
 <script src="app.js" defer></script>
 </body>
 </html>

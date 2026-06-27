@@ -1,7 +1,10 @@
 /* ═══════════════════════════════════════════════════════════════
-   TONMOY PORTFOLIO — APPLICATION LOGIC
-   Handles data loading, rendering, particles, scroll effects,
-   admin panel, and mobile navigation.
+   TONMOY PORTFOLIO — IMMERSIVE ANIMATION ENGINE
+   GSAP + ScrollTrigger + Lenis + SplitType
+   Cinematic scroll-driven experience with horizontal gallery,
+   kinetic typography, magnetic buttons, and custom cursor.
+
+   Admin panel logic preserved from original codebase.
    ═══════════════════════════════════════════════════════════════ */
 
 /* ── DEFAULT DATA — source of truth for reset ── */
@@ -151,13 +154,13 @@ const DEFAULT_DATA = {
     }
   ],
   contact: {
-    title: "Get In Touch",
+    title: "Let's Talk",
     tagline: "Whether it's a project, a collaboration, or a conversation about enterprise systems and grad school — I'm all ears.",
     email: "tonmoy.bit@gmail.com",
     linkedin: "https://linkedin.com/in/yourprofile",
     github: "https://github.com/yourprofile"
   },
-  footer: "Md. Al Imran Tonmoy · Built with dark energy & orange ambition · Dhaka, Bangladesh"
+  footer: "Md. Al Imran Tonmoy · Built with dark energy & golden ambition · Dhaka, Bangladesh"
 };
 
 
@@ -173,6 +176,8 @@ function esc(str) {
 }
 
 function $(id) { return document.getElementById(id); }
+
+const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 
 /* ═══════════════════════════════════════════
@@ -194,125 +199,107 @@ async function loadData() {
 
 
 /* ═══════════════════════════════════════════
-   PARTICLE SYSTEM
-   Lightweight canvas-based floating particles
-   with connecting lines between nearby ones.
+   RENDER PORTFOLIO
+   Populates DOM with data. Called once after
+   data load, and after admin saves.
    ═══════════════════════════════════════════ */
-class ParticleField {
-  constructor(canvas) {
-    this.canvas = canvas;
-    this.ctx = canvas.getContext('2d');
-    this.particles = [];
-    this.mouse = { x: -9999, y: -9999 };
-    this.maxParticles = window.innerWidth < 768 ? 35 : 65;
-    this.connectionDist = 140;
-    this.rafId = null;
-    this._resize = this.resize.bind(this);
-    this._mouseMove = this.onMouseMove.bind(this);
-    this._mouseLeave = this.onMouseLeave.bind(this);
+function renderPortfolio() {
+  const d = DATA;
 
-    window.addEventListener('resize', this._resize);
-    canvas.parentElement.addEventListener('mousemove', this._mouseMove);
-    canvas.parentElement.addEventListener('mouseleave', this._mouseLeave);
+  /* Hero Name — split last word as accent */
+  const words = d.hero.name.split(' ');
+  const lastWord = words.pop();
+  $('hero-name-el').innerHTML =
+    words.map(w => `<span class="word">${w}</span> `).join('') +
+    `<span class="word accent-word">${esc(lastWord)}</span>`;
 
-    this.resize();
-    this.init();
-    this.animate();
-  }
+  /* Hero tagline & CTAs */
+  $('hero-tagline-el').textContent = `"${d.hero.tagline}"`;
+  $('hero-cta1-el').textContent = d.hero.cta1;
+  $('hero-cta2-el').textContent = d.hero.cta2;
+  $('hero-cta2-el').href = d.hero.cvUrl || '#';
 
-  resize() {
-    const hero = this.canvas.parentElement;
-    this.canvas.width = hero.offsetWidth;
-    this.canvas.height = hero.offsetHeight;
-  }
+  /* About */
+  $('about-title-el').textContent = d.about.title;
+  $('about-text-el').innerHTML =
+    (d.about.paragraphs || []).map(p => `<p>${esc(p)}</p>`).join('');
+  $('interests-el').innerHTML =
+    (d.about.interests || []).map(i =>
+      `<span class="interest-tag">${esc(i)}</span>`
+    ).join('');
 
-  init() {
-    this.particles = [];
-    for (let i = 0; i < this.maxParticles; i++) {
-      this.particles.push({
-        x: Math.random() * this.canvas.width,
-        y: Math.random() * this.canvas.height,
-        vx: (Math.random() - 0.5) * 0.4,
-        vy: (Math.random() - 0.5) * 0.4,
-        r: Math.random() * 1.8 + 0.5,
-        alpha: Math.random() * 0.4 + 0.15
-      });
-    }
-  }
+  /* Skills */
+  $('skills-el').innerHTML =
+    (d.skills || []).map(s => `
+      <div class="skill-card tilt-card">
+        <div class="card-shine"></div>
+        <div class="skill-card-title">${esc(s.category)}</div>
+        <div class="skill-chips">
+          ${(s.chips || []).map(c => `<span class="chip">${esc(c)}</span>`).join('')}
+        </div>
+      </div>`).join('');
 
-  onMouseMove(e) {
-    const rect = this.canvas.getBoundingClientRect();
-    this.mouse.x = e.clientX - rect.left;
-    this.mouse.y = e.clientY - rect.top;
-  }
+  /* Experience */
+  const timelineEl = $('experience-el');
+  // Keep the timeline line element
+  const lineEl = timelineEl.querySelector('.timeline-line');
+  const lineHTML = lineEl ? lineEl.outerHTML : '<div class="timeline-line"><div class="timeline-line-fill" id="timeline-line-fill"></div></div>';
+  timelineEl.innerHTML = lineHTML +
+    (d.experience || []).map(e => `
+      <div class="tl-item">
+        <div class="tl-dot"></div>
+        <div class="tl-period">${esc(e.period)}</div>
+        <div class="tl-role">${esc(e.role)}</div>
+        <div class="tl-company">${esc(e.company)}</div>
+        <div class="tl-desc">
+          <ul>${(e.bullets || []).map(b => `<li>${esc(b)}</li>`).join('')}</ul>
+        </div>
+      </div>`).join('');
 
-  onMouseLeave() {
-    this.mouse.x = -9999;
-    this.mouse.y = -9999;
-  }
+  /* Projects — horizontal gallery slides */
+  const projectHues = [40, 200, 270, 140, 15, 320, 60, 100];
+  $('projects-el').innerHTML =
+    (d.projects || []).map((p, i) => `
+      <div class="project-slide" style="--project-hue: ${projectHues[i % projectHues.length]}">
+        <div class="project-bg"></div>
+        <div class="project-number">${String(i + 1).padStart(2, '0')}</div>
+        <div class="project-content">
+          <div class="project-tags-top">
+            ${(p.tags || []).map(t => `<span class="project-tag">${esc(t)}</span>`).join('')}
+          </div>
+          <h3 class="project-title">${esc(p.title)}</h3>
+          <p class="project-desc">${esc(p.desc)}</p>
+        </div>
+      </div>`).join('');
 
-  animate() {
-    const { ctx, canvas, particles, mouse } = this;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  /* Education */
+  $('education-el').innerHTML =
+    (d.education || []).map(e => `
+      <div class="edu-card">
+        <div class="edu-degree">${esc(e.degree)}</div>
+        <div class="edu-school">${esc(e.school)}</div>
+        <div class="edu-meta">${esc(e.meta)}</div>
+      </div>`).join('');
 
-    for (let i = 0; i < particles.length; i++) {
-      const p = particles[i];
-      p.x += p.vx;
-      p.y += p.vy;
+  /* What's Next */
+  $('next-el').innerHTML =
+    (d.next || []).map(n => `
+      <div class="next-card">
+        <div class="next-emoji">${n.emoji}</div>
+        <div class="next-label">${esc(n.label)}</div>
+        <div class="next-text">${esc(n.text)}</div>
+      </div>`).join('');
 
-      // Wrap edges
-      if (p.x < 0) p.x = canvas.width;
-      if (p.x > canvas.width) p.x = 0;
-      if (p.y < 0) p.y = canvas.height;
-      if (p.y > canvas.height) p.y = 0;
+  /* Contact */
+  $('contact-title-el').textContent = d.contact.title;
+  $('contact-tagline-el').textContent = d.contact.tagline;
+  $('contact-links-el').innerHTML = `
+    <a class="contact-link email magnetic" href="mailto:${esc(d.contact.email)}">✉ ${esc(d.contact.email)}</a>
+    <a class="contact-link social magnetic" href="${esc(d.contact.linkedin)}" target="_blank" rel="noopener">in LinkedIn</a>
+    <a class="contact-link social magnetic" href="${esc(d.contact.github)}" target="_blank" rel="noopener">⌥ GitHub</a>`;
 
-      // Draw particle
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(232, 93, 4, ${p.alpha})`;
-      ctx.fill();
-
-      // Connect to nearby particles
-      for (let j = i + 1; j < particles.length; j++) {
-        const p2 = particles[j];
-        const dx = p.x - p2.x;
-        const dy = p.y - p2.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < this.connectionDist) {
-          const opacity = (1 - dist / this.connectionDist) * 0.12;
-          ctx.beginPath();
-          ctx.moveTo(p.x, p.y);
-          ctx.lineTo(p2.x, p2.y);
-          ctx.strokeStyle = `rgba(232, 93, 4, ${opacity})`;
-          ctx.lineWidth = 0.5;
-          ctx.stroke();
-        }
-      }
-
-      // Mouse interaction — gentle repulsion
-      const mdx = p.x - mouse.x;
-      const mdy = p.y - mouse.y;
-      const mDist = Math.sqrt(mdx * mdx + mdy * mdy);
-      if (mDist < 120) {
-        const force = (120 - mDist) / 120 * 0.015;
-        p.vx += (mdx / mDist) * force;
-        p.vy += (mdy / mDist) * force;
-      }
-
-      // Dampen velocity
-      p.vx *= 0.999;
-      p.vy *= 0.999;
-    }
-
-    this.rafId = requestAnimationFrame(() => this.animate());
-  }
-
-  destroy() {
-    cancelAnimationFrame(this.rafId);
-    window.removeEventListener('resize', this._resize);
-    this.canvas.parentElement.removeEventListener('mousemove', this._mouseMove);
-    this.canvas.parentElement.removeEventListener('mouseleave', this._mouseLeave);
-  }
+  /* Footer */
+  $('footer-el').textContent = d.footer;
 }
 
 
@@ -351,146 +338,718 @@ function typewrite() {
 
 
 /* ═══════════════════════════════════════════
-   RENDER PORTFOLIO
+   LENIS SMOOTH SCROLL
    ═══════════════════════════════════════════ */
-function renderPortfolio() {
-  const d = DATA;
+let lenis = null;
 
-  /* Hero */
-  const words = d.hero.name.split(' ');
-  const lastWord = words.pop();
-  $('hero-name-el').innerHTML =
-    (words.join(' ') + ' ') + `<span class="accent">${esc(lastWord)}</span>`;
-  $('hero-tagline-el').innerHTML =
-    `<span class="hl">"${esc(d.hero.tagline)}"</span>`;
-  const c1 = $('hero-cta1-el');
-  const c2 = $('hero-cta2-el');
-  c1.textContent = d.hero.cta1;
-  c2.textContent = d.hero.cta2;
-  c2.href = d.hero.cvUrl || '#';
+function initLenis() {
+  if (prefersReducedMotion) return;
 
-  /* About */
-  $('about-title-el').textContent = d.about.title;
-  $('about-text-el').innerHTML =
-    (d.about.paragraphs || []).map(p => `<p>${esc(p)}</p>`).join('');
-  $('interests-el').innerHTML =
-    (d.about.interests || []).map(i => `<span class="tag">${esc(i)}</span>`).join('');
+  lenis = new Lenis({
+    duration: 1.2,
+    easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+    orientation: 'vertical',
+    smoothWheel: true,
+    touchMultiplier: 1.5,
+  });
 
-  /* Skills */
-  $('skills-el').innerHTML =
-    (d.skills || []).map(s => `
-      <div class="glass-card skill-card">
-        <div class="skill-card-title">${esc(s.category)}</div>
-        <div class="skill-chips">
-          ${(s.chips || []).map(c => `<span class="chip">${esc(c)}</span>`).join('')}
-        </div>
-      </div>`).join('');
+  // Connect to GSAP
+  lenis.on('scroll', ScrollTrigger.update);
 
-  /* Experience */
-  $('experience-el').innerHTML =
-    (d.experience || []).map(e => `
-      <div class="tl-item">
-        <div class="tl-dot"></div>
-        <div class="tl-period">${esc(e.period)}</div>
-        <div class="tl-role">${esc(e.role)}</div>
-        <div class="tl-company">${esc(e.company)}</div>
-        <div class="tl-desc">
-          <ul>${(e.bullets || []).map(b => `<li>${esc(b)}</li>`).join('')}</ul>
-        </div>
-      </div>`).join('');
+  gsap.ticker.add((time) => {
+    lenis.raf(time * 1000);
+  });
 
-  /* Projects */
-  $('projects-el').innerHTML =
-    (d.projects || []).map(p => `
-      <div class="glass-card project-card">
-        <div class="project-card-title">${esc(p.title)}</div>
-        <div class="project-card-desc">${esc(p.desc)}</div>
-        <div class="project-tags">
-          ${(p.tags || []).map(t => `<span class="project-tag">${esc(t)}</span>`).join('')}
-        </div>
-      </div>`).join('');
-
-  /* Education */
-  $('education-el').innerHTML =
-    (d.education || []).map(e => `
-      <div class="glass-card edu-card">
-        <div class="edu-degree">${esc(e.degree)}</div>
-        <div class="edu-school">${esc(e.school)}</div>
-        <div class="edu-meta">${esc(e.meta)}</div>
-      </div>`).join('');
-
-  /* Next */
-  $('next-el').innerHTML =
-    (d.next || []).map(n => `
-      <div class="glass-card next-card">
-        <div class="next-emoji">${n.emoji}</div>
-        <div class="next-label">${esc(n.label)}</div>
-        <div class="next-text">${esc(n.text)}</div>
-      </div>`).join('');
-
-  /* Contact */
-  $('contact-title-el').textContent = d.contact.title;
-  $('contact-tagline-el').textContent = d.contact.tagline;
-  $('contact-links-el').innerHTML = `
-    <a class="contact-link email" href="mailto:${esc(d.contact.email)}">✉ ${esc(d.contact.email)}</a>
-    <a class="contact-link social" href="${esc(d.contact.linkedin)}" target="_blank" rel="noopener">in LinkedIn</a>
-    <a class="contact-link social" href="${esc(d.contact.github)}" target="_blank" rel="noopener">⌥ GitHub</a>`;
-
-  /* Footer */
-  $('footer-el').textContent = d.footer;
+  gsap.ticker.lagSmoothing(0);
 }
 
 
 /* ═══════════════════════════════════════════
-   SCROLL EFFECTS
+   CUSTOM CURSOR
    ═══════════════════════════════════════════ */
-function initScrollObserver() {
-  const obs = new IntersectionObserver((entries) => {
-    entries.forEach(e => {
-      if (e.isIntersecting) {
-        e.target.classList.add('visible');
-        obs.unobserve(e.target);
-      }
-    });
-  }, { threshold: 0.06, rootMargin: '0px 0px -40px 0px' });
+function initCursor() {
+  if (prefersReducedMotion || window.innerWidth < 768) return;
 
-  document.querySelectorAll('.reveal, .stagger-children').forEach(el => obs.observe(el));
+  const dot = $('cursor-dot');
+  const follower = $('cursor-follower');
+  if (!dot || !follower) return;
+
+  const dotX = gsap.quickTo(dot, 'left', { duration: 0.15, ease: 'power3.out' });
+  const dotY = gsap.quickTo(dot, 'top', { duration: 0.15, ease: 'power3.out' });
+  const fX = gsap.quickTo(follower, 'left', { duration: 0.45, ease: 'power3.out' });
+  const fY = gsap.quickTo(follower, 'top', { duration: 0.45, ease: 'power3.out' });
+
+  window.addEventListener('mousemove', (e) => {
+    dotX(e.clientX);
+    dotY(e.clientY);
+    fX(e.clientX);
+    fY(e.clientY);
+  });
+
+  // Hover effects on interactive elements
+  const interactives = 'a, button, .btn, .chip, .interest-tag, .project-slide, .skill-card, .edu-card, .next-card, .contact-link, input, textarea';
+
+  document.addEventListener('mouseover', (e) => {
+    if (e.target.closest(interactives)) {
+      follower.classList.add('hovering');
+    }
+  });
+
+  document.addEventListener('mouseout', (e) => {
+    if (e.target.closest(interactives)) {
+      follower.classList.remove('hovering');
+    }
+  });
+
+  document.addEventListener('mousedown', () => follower.classList.add('clicking'));
+  document.addEventListener('mouseup', () => follower.classList.remove('clicking'));
 }
 
-/* Active nav link based on scroll */
-function initActiveNav() {
-  const sections = document.querySelectorAll('[data-nav-section]');
+
+/* ═══════════════════════════════════════════
+   MAGNETIC BUTTONS
+   ═══════════════════════════════════════════ */
+function initMagneticButtons() {
+  if (prefersReducedMotion || window.innerWidth < 768) return;
+
+  document.querySelectorAll('.magnetic').forEach(btn => {
+    const xTo = gsap.quickTo(btn, 'x', { duration: 0.6, ease: 'elastic.out(1, 0.5)' });
+    const yTo = gsap.quickTo(btn, 'y', { duration: 0.6, ease: 'elastic.out(1, 0.5)' });
+
+    btn.addEventListener('mousemove', (e) => {
+      const rect = btn.getBoundingClientRect();
+      const x = e.clientX - rect.left - rect.width / 2;
+      const y = e.clientY - rect.top - rect.height / 2;
+      xTo(x * 0.25);
+      yTo(y * 0.25);
+    });
+
+    btn.addEventListener('mouseleave', () => {
+      xTo(0);
+      yTo(0);
+    });
+  });
+}
+
+
+/* ═══════════════════════════════════════════
+   3D CARD TILT
+   ═══════════════════════════════════════════ */
+function initCardTilt() {
+  if (prefersReducedMotion || window.innerWidth < 768) return;
+
+  document.querySelectorAll('.tilt-card').forEach(card => {
+    const shine = card.querySelector('.card-shine');
+
+    card.addEventListener('mousemove', (e) => {
+      const rect = card.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / rect.width;
+      const y = (e.clientY - rect.top) / rect.height;
+      const tiltX = (y - 0.5) * 12;
+      const tiltY = (x - 0.5) * -12;
+
+      gsap.to(card, {
+        rotateX: tiltX,
+        rotateY: tiltY,
+        scale: 1.02,
+        duration: 0.4,
+        ease: 'power2.out',
+        transformPerspective: 800,
+      });
+
+      if (shine) {
+        shine.style.setProperty('--shine-x', `${x * 100}%`);
+        shine.style.setProperty('--shine-y', `${y * 100}%`);
+      }
+    });
+
+    card.addEventListener('mouseleave', () => {
+      gsap.to(card, {
+        rotateX: 0,
+        rotateY: 0,
+        scale: 1,
+        duration: 0.6,
+        ease: 'elastic.out(1, 0.5)',
+        transformPerspective: 800,
+      });
+    });
+  });
+}
+
+
+/* ═══════════════════════════════════════════
+   PRELOADER
+   ═══════════════════════════════════════════ */
+function initPreloader(onComplete) {
+  if (prefersReducedMotion) {
+    const preloader = $('preloader');
+    if (preloader) preloader.style.display = 'none';
+    onComplete();
+    return;
+  }
+
+  const tl = gsap.timeline({
+    onComplete: () => {
+      // Curtain reveal
+      const revealTl = gsap.timeline({
+        onComplete: () => {
+          const preloader = $('preloader');
+          if (preloader) preloader.style.display = 'none';
+          onComplete();
+        }
+      });
+
+      revealTl
+        .to('#preloader-content', {
+          opacity: 0,
+          scale: 0.85,
+          duration: 0.3,
+          ease: 'power2.in',
+        })
+        .to('.preloader-half--top', {
+          yPercent: -100,
+          duration: 0.9,
+          ease: 'power4.inOut',
+        }, 0.15)
+        .to('.preloader-half--bottom', {
+          yPercent: 100,
+          duration: 0.9,
+          ease: 'power4.inOut',
+        }, 0.15);
+    }
+  });
+
+  // Letter animation
+  tl.to('.preloader-letter', {
+    y: 0,
+    opacity: 1,
+    stagger: 0.06,
+    duration: 0.6,
+    ease: 'power3.out',
+    delay: 0.3,
+  });
+
+  // Counter animation
+  const counter = $('preloader-counter');
+  const barFill = $('preloader-bar-fill');
+  const obj = { val: 0 };
+
+  tl.to(obj, {
+    val: 100,
+    duration: 1.8,
+    ease: 'power2.inOut',
+    onUpdate: () => {
+      const v = Math.round(obj.val);
+      if (counter) counter.textContent = v + '%';
+      if (barFill) barFill.style.width = v + '%';
+    },
+  }, '-=0.3');
+
+  // Small pause at 100
+  tl.to({}, { duration: 0.3 });
+}
+
+
+/* ═══════════════════════════════════════════
+   HERO ANIMATIONS
+   ═══════════════════════════════════════════ */
+function initHeroAnimations() {
+  if (prefersReducedMotion) {
+    // Just show everything
+    gsap.set(['.hero-name .word', '.hero-tagline', '.hero-cta', '.scroll-indicator', '.float-el', '#main-nav'], {
+      opacity: 1, y: 0, x: 0, scale: 1,
+    });
+    $('main-nav').classList.add('visible');
+    return;
+  }
+
+  const tl = gsap.timeline({ delay: 0.1 });
+
+  // Hero name — words stagger in
+  tl.from('.hero-name .word', {
+    y: 80,
+    opacity: 0,
+    rotateX: 45,
+    stagger: 0.08,
+    duration: 0.9,
+    ease: 'power3.out',
+    transformOrigin: 'bottom',
+  });
+
+  // Tagline
+  tl.to('.hero-tagline', {
+    opacity: 0.85,
+    y: 0,
+    duration: 0.7,
+    ease: 'power2.out',
+  }, '-=0.4');
+
+  // CTAs
+  tl.to('.hero-cta', {
+    opacity: 1,
+    y: 0,
+    duration: 0.6,
+    ease: 'power2.out',
+  }, '-=0.3');
+
+  // Scroll indicator
+  tl.to('#scroll-indicator', {
+    opacity: 1,
+    y: 0,
+    duration: 0.5,
+    ease: 'power2.out',
+  }, '-=0.2');
+
+  // Floating elements
+  tl.to('.float-el', {
+    opacity: 1,
+    stagger: 0.08,
+    duration: 0.6,
+    ease: 'power2.out',
+  }, '-=0.5');
+
+  // Nav
+  tl.add(() => {
+    $('main-nav').classList.add('visible');
+  }, '-=0.3');
+
+  // Hero scroll-away animation
+  gsap.to('.hero-content', {
+    y: -100,
+    opacity: 0,
+    scale: 0.95,
+    scrollTrigger: {
+      trigger: '.hero-section',
+      start: 'top top',
+      end: 'bottom 60%',
+      scrub: 1.5,
+    },
+  });
+
+  gsap.to('#scroll-indicator', {
+    opacity: 0,
+    y: 20,
+    scrollTrigger: {
+      trigger: '.hero-section',
+      start: 'top top',
+      end: '15% top',
+      scrub: 1,
+    },
+  });
+}
+
+
+/* ═══════════════════════════════════════════
+   HERO MOUSE PARALLAX (floating elements)
+   ═══════════════════════════════════════════ */
+function initHeroParallax() {
+  if (prefersReducedMotion || window.innerWidth < 768) return;
+
+  const floatingEls = document.querySelectorAll('.float-el');
+  if (!floatingEls.length) return;
+
+  const speeds = [0.03, 0.02, 0.04, 0.025, 0.035, 0.015, 0.03];
+
+  document.querySelector('.hero-section').addEventListener('mousemove', (e) => {
+    const cx = window.innerWidth / 2;
+    const cy = window.innerHeight / 2;
+    const dx = (e.clientX - cx) / cx;
+    const dy = (e.clientY - cy) / cy;
+
+    floatingEls.forEach((el, i) => {
+      const speed = speeds[i % speeds.length] * 100;
+      gsap.to(el, {
+        x: dx * speed,
+        y: dy * speed,
+        duration: 1.2,
+        ease: 'power2.out',
+      });
+    });
+  });
+}
+
+
+/* ═══════════════════════════════════════════
+   SECTION SCROLL ANIMATIONS
+   ═══════════════════════════════════════════ */
+function initSectionAnimations() {
+  if (prefersReducedMotion) return;
+
+  // ── ABOUT SECTION ──
+  // Heading reveal
+  gsap.from('#about .section-heading', {
+    y: 60,
+    opacity: 0,
+    duration: 0.8,
+    ease: 'power3.out',
+    scrollTrigger: {
+      trigger: '#about .section-heading',
+      start: 'top 85%',
+      toggleActions: 'play none none none',
+    },
+  });
+
+  gsap.from('#about .section-label', {
+    y: 20,
+    opacity: 0,
+    duration: 0.6,
+    ease: 'power3.out',
+    scrollTrigger: {
+      trigger: '#about .section-label',
+      start: 'top 90%',
+      toggleActions: 'play none none none',
+    },
+  });
+
+  // About paragraphs — stagger reveal
+  gsap.from('#about-text-el p', {
+    y: 40,
+    opacity: 0,
+    stagger: 0.15,
+    duration: 0.7,
+    ease: 'power3.out',
+    scrollTrigger: {
+      trigger: '#about-text-el',
+      start: 'top 80%',
+      toggleActions: 'play none none none',
+    },
+  });
+
+  // Interest tags
+  gsap.to('.interest-tag', {
+    opacity: 1,
+    scale: 1,
+    y: 0,
+    stagger: 0.04,
+    duration: 0.5,
+    ease: 'power3.out',
+    scrollTrigger: {
+      trigger: '.interests-grid',
+      start: 'top 85%',
+      toggleActions: 'play none none none',
+    },
+  });
+
+  // ── SKILLS SECTION ──
+  gsap.from('#skills .section-label, #skills .section-heading', {
+    y: 40,
+    opacity: 0,
+    stagger: 0.1,
+    duration: 0.7,
+    ease: 'power3.out',
+    scrollTrigger: {
+      trigger: '#skills',
+      start: 'top 80%',
+      toggleActions: 'play none none none',
+    },
+  });
+
+  gsap.from('.skill-card', {
+    y: 50,
+    opacity: 0,
+    rotateY: 15,
+    stagger: 0.12,
+    duration: 0.7,
+    ease: 'power3.out',
+    transformPerspective: 800,
+    scrollTrigger: {
+      trigger: '.skills-grid',
+      start: 'top 80%',
+      toggleActions: 'play none none none',
+    },
+  });
+
+  // ── EXPERIENCE SECTION ──
+  gsap.from('#experience .section-label, #experience .section-heading', {
+    y: 40,
+    opacity: 0,
+    stagger: 0.1,
+    duration: 0.7,
+    ease: 'power3.out',
+    scrollTrigger: {
+      trigger: '#experience',
+      start: 'top 80%',
+      toggleActions: 'play none none none',
+    },
+  });
+
+  // Timeline line fill
+  const timelineEl = $('experience-el');
+  if (timelineEl) {
+    gsap.to('#timeline-line-fill', {
+      height: '100%',
+      ease: 'none',
+      scrollTrigger: {
+        trigger: timelineEl,
+        start: 'top 70%',
+        end: 'bottom 30%',
+        scrub: 1,
+      },
+    });
+  }
+
+  // Timeline items
+  gsap.utils.toArray('.tl-item').forEach((item, i) => {
+    gsap.to(item, {
+      x: 0,
+      opacity: 1,
+      duration: 0.7,
+      ease: 'power3.out',
+      scrollTrigger: {
+        trigger: item,
+        start: 'top 85%',
+        toggleActions: 'play none none none',
+        onEnter: () => item.classList.add('active'),
+      },
+    });
+  });
+
+  // ── EDUCATION SECTION ──
+  gsap.from('#education .section-label, #education .section-heading', {
+    y: 40,
+    opacity: 0,
+    stagger: 0.1,
+    duration: 0.7,
+    ease: 'power3.out',
+    scrollTrigger: {
+      trigger: '#education',
+      start: 'top 80%',
+      toggleActions: 'play none none none',
+    },
+  });
+
+  gsap.to('.edu-card', {
+    y: 0,
+    opacity: 1,
+    stagger: 0.1,
+    duration: 0.6,
+    ease: 'power3.out',
+    scrollTrigger: {
+      trigger: '.edu-grid',
+      start: 'top 85%',
+      toggleActions: 'play none none none',
+    },
+  });
+
+  // ── WHAT'S NEXT SECTION ──
+  gsap.from('#next .section-label, #next .section-heading', {
+    y: 40,
+    opacity: 0,
+    stagger: 0.1,
+    duration: 0.7,
+    ease: 'power3.out',
+    scrollTrigger: {
+      trigger: '#next',
+      start: 'top 80%',
+      toggleActions: 'play none none none',
+    },
+  });
+
+  gsap.to('.next-card', {
+    y: 0,
+    opacity: 1,
+    scale: 1,
+    stagger: 0.12,
+    duration: 0.6,
+    ease: 'power3.out',
+    scrollTrigger: {
+      trigger: '.next-grid',
+      start: 'top 85%',
+      toggleActions: 'play none none none',
+    },
+  });
+
+  // ── CONTACT SECTION ──
+  gsap.from('#contact-section .section-label', {
+    y: 20,
+    opacity: 0,
+    duration: 0.5,
+    ease: 'power3.out',
+    scrollTrigger: {
+      trigger: '#contact-section',
+      start: 'top 80%',
+      toggleActions: 'play none none none',
+    },
+  });
+
+  // Large heading scale reveal
+  gsap.to('.contact-heading', {
+    opacity: 1,
+    duration: 0.8,
+    ease: 'power3.out',
+    scrollTrigger: {
+      trigger: '.contact-heading',
+      start: 'top 85%',
+      toggleActions: 'play none none none',
+    },
+  });
+
+  // Contact heading scale-down effect
+  gsap.fromTo('.contact-heading', {
+    scale: 1.3,
+    opacity: 0,
+  }, {
+    scale: 1,
+    opacity: 1,
+    duration: 1,
+    ease: 'power3.out',
+    scrollTrigger: {
+      trigger: '.contact-heading',
+      start: 'top 90%',
+      toggleActions: 'play none none none',
+    },
+  });
+
+  gsap.to('.contact-tagline', {
+    opacity: 1,
+    duration: 0.6,
+    delay: 0.15,
+    ease: 'power2.out',
+    scrollTrigger: {
+      trigger: '.contact-tagline',
+      start: 'top 90%',
+      toggleActions: 'play none none none',
+    },
+  });
+
+  gsap.to('.contact-links', {
+    opacity: 1,
+    duration: 0.6,
+    delay: 0.25,
+    ease: 'power2.out',
+    scrollTrigger: {
+      trigger: '.contact-links',
+      start: 'top 95%',
+      toggleActions: 'play none none none',
+    },
+  });
+}
+
+
+/* ═══════════════════════════════════════════
+   HORIZONTAL PROJECTS GALLERY
+   ═══════════════════════════════════════════ */
+function initProjectsGallery() {
+  const track = $('projects-el');
+  if (!track) return;
+
+  const slides = track.querySelectorAll('.project-slide');
+  if (!slides.length) return;
+
+  if (prefersReducedMotion) {
+    // Show all slides without animation
+    gsap.set(slides, { opacity: 1 });
+    return;
+  }
+
+  // Section labels/headings animation
+  gsap.from('#projects .section-label, #projects .section-heading', {
+    y: 40,
+    opacity: 0,
+    stagger: 0.1,
+    duration: 0.7,
+    ease: 'power3.out',
+    scrollTrigger: {
+      trigger: '#projects',
+      start: 'top 80%',
+      toggleActions: 'play none none none',
+    },
+  });
+
+  // Calculate scroll distance
+  const getScrollDistance = () => -(track.scrollWidth - window.innerWidth + 100);
+
+  // Horizontal scroll animation
+  const horizontalScroll = gsap.to(track, {
+    x: getScrollDistance,
+    ease: 'none',
+    scrollTrigger: {
+      trigger: '#projects',
+      start: 'top 10%',
+      pin: true,
+      scrub: 1,
+      end: () => '+=' + (track.scrollWidth - window.innerWidth + 200),
+      invalidateOnRefresh: true,
+      onUpdate: (self) => {
+        // Update progress bar
+        gsap.set('#projects-progress-bar', { scaleX: self.progress });
+      },
+    },
+  });
+
+  // Individual slide animations (parallax number)
+  slides.forEach((slide) => {
+    const number = slide.querySelector('.project-number');
+    if (!number) return;
+
+    gsap.fromTo(number, {
+      x: 80,
+    }, {
+      x: -80,
+      ease: 'none',
+      scrollTrigger: {
+        trigger: slide,
+        containerAnimation: horizontalScroll,
+        start: 'left right',
+        end: 'right left',
+        scrub: true,
+      },
+    });
+
+    // Content fade in
+    const content = slide.querySelector('.project-content');
+    if (content) {
+      gsap.from(content, {
+        y: 40,
+        opacity: 0,
+        duration: 0.8,
+        ease: 'power3.out',
+        scrollTrigger: {
+          trigger: slide,
+          containerAnimation: horizontalScroll,
+          start: 'left 75%',
+          toggleActions: 'play none none none',
+        },
+      });
+    }
+  });
+}
+
+
+/* ═══════════════════════════════════════════
+   NAV SCROLL STATE
+   ═══════════════════════════════════════════ */
+function initNavScroll() {
+  const nav = $('main-nav');
+  if (!nav) return;
+
+  ScrollTrigger.create({
+    trigger: '.hero-section',
+    start: 'bottom 80%',
+    onEnter: () => nav.classList.add('scrolled'),
+    onLeaveBack: () => nav.classList.remove('scrolled'),
+  });
+
+  // Active nav link tracking
+  const sections = ['about', 'skills', 'experience', 'projects', 'contact-section'];
   const navLinks = document.querySelectorAll('.nav-links a');
 
-  if (!sections.length || !navLinks.length) return;
+  sections.forEach(id => {
+    const section = document.getElementById(id);
+    if (!section) return;
 
-  const obs = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        const id = entry.target.getAttribute('data-nav-section');
-        navLinks.forEach(a => {
-          a.classList.toggle('active', a.getAttribute('href') === `#${id}`);
-        });
-      }
+    ScrollTrigger.create({
+      trigger: section,
+      start: 'top 40%',
+      end: 'bottom 40%',
+      onToggle: (self) => {
+        if (self.isActive) {
+          navLinks.forEach(a => {
+            a.classList.toggle('active', a.getAttribute('href') === `#${id}`);
+          });
+        }
+      },
     });
-  }, { threshold: 0.2, rootMargin: '-64px 0px -50% 0px' });
-
-  sections.forEach(s => obs.observe(s));
-}
-
-/* Nav background on scroll */
-function initNavScroll() {
-  const nav = document.querySelector('nav');
-  let ticking = false;
-
-  window.addEventListener('scroll', () => {
-    if (!ticking) {
-      requestAnimationFrame(() => {
-        nav.classList.toggle('scrolled', window.scrollY > 50);
-        ticking = false;
-      });
-      ticking = true;
-    }
   });
 }
 
@@ -500,19 +1059,19 @@ function initNavScroll() {
    ═══════════════════════════════════════════ */
 function initMobileNav() {
   const hamburger = $('hamburger');
-  const overlay = $('mobileNavOverlay');
-  if (!hamburger || !overlay) return;
+  const mobileNav = $('mobile-nav');
+  if (!hamburger || !mobileNav) return;
 
   hamburger.addEventListener('click', () => {
     hamburger.classList.toggle('open');
-    overlay.classList.toggle('open');
-    document.body.style.overflow = overlay.classList.contains('open') ? 'hidden' : '';
+    mobileNav.classList.toggle('open');
+    document.body.style.overflow = mobileNav.classList.contains('open') ? 'hidden' : '';
   });
 
-  overlay.querySelectorAll('a').forEach(a => {
+  mobileNav.querySelectorAll('a').forEach(a => {
     a.addEventListener('click', () => {
       hamburger.classList.remove('open');
-      overlay.classList.remove('open');
+      mobileNav.classList.remove('open');
       document.body.style.overflow = '';
     });
   });
@@ -520,7 +1079,7 @@ function initMobileNav() {
 
 
 /* ═══════════════════════════════════════════
-   ADMIN PANEL
+   ADMIN PANEL (preserved from original)
    ═══════════════════════════════════════════ */
 const TABS = [
   { id: 'hero', label: 'Hero' },
@@ -745,7 +1304,7 @@ function buildPanel(id) {
       <input class="form-input" id="f-footer" value="${esc(DATA.footer)}">
     </div>`;
 
-  return '<p style="color:var(--muted)">Panel coming soon.</p>';
+  return '<p style="color:var(--text-muted)">Panel coming soon.</p>';
 }
 
 function switchTab(id) {
@@ -832,7 +1391,20 @@ async function saveAll() {
       body: JSON.stringify(DATA)
     });
     if (res.ok) {
+      // Kill existing ScrollTriggers before re-rendering
+      ScrollTrigger.getAll().forEach(st => st.kill());
+
       renderPortfolio();
+
+      // Re-initialize animations after re-render
+      requestAnimationFrame(() => {
+        initSectionAnimations();
+        initProjectsGallery();
+        initCardTilt();
+        initMagneticButtons();
+        ScrollTrigger.refresh();
+      });
+
       showToast('✓ Changes saved and applied!');
     } else {
       showToast('❌ Failed to save data');
@@ -852,8 +1424,17 @@ async function resetDefaults() {
       body: JSON.stringify(DATA)
     });
   } catch (err) { /* best effort */ }
+
+  ScrollTrigger.getAll().forEach(st => st.kill());
   buildAdminUI();
   renderPortfolio();
+  requestAnimationFrame(() => {
+    initSectionAnimations();
+    initProjectsGallery();
+    initCardTilt();
+    initMagneticButtons();
+    ScrollTrigger.refresh();
+  });
   showToast('↺ Reset to defaults.');
 }
 
@@ -915,11 +1496,13 @@ function openAdmin() {
   buildAdminUI();
   $('adminModal').classList.add('open');
   document.body.style.overflow = 'hidden';
+  if (lenis) lenis.stop();
 }
 
 function closeAdmin() {
   $('adminModal').classList.remove('open');
   document.body.style.overflow = '';
+  if (lenis) lenis.start();
 }
 
 
@@ -941,24 +1524,53 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (window.location.hash) window.history.replaceState(null, null, window.location.pathname);
   window.scrollTo(0, 0);
 
-  // Load data from MongoDB, render, and reveal
+  // Register GSAP plugins
+  gsap.registerPlugin(ScrollTrigger);
+
+  // Load data & render
   await loadData();
   renderPortfolio();
-  document.body.classList.add('loaded');
 
-  // Start effects
+  // Initialize Lenis smooth scroll
+  initLenis();
+
+  // Start typewriter
   typewrite();
-  initScrollObserver();
-  initActiveNav();
-  initNavScroll();
+
+  // Mobile nav
   initMobileNav();
 
-  // Particle system
-  const canvas = $('particles-canvas');
-  if (canvas) new ParticleField(canvas);
+  // Preloader → then animations
+  initPreloader(() => {
+    // After preloader completes:
+    initHeroAnimations();
+    initHeroParallax();
+    initCursor();
+
+    // Delay section animations slightly to allow ScrollTrigger to calculate positions
+    requestAnimationFrame(() => {
+      initSectionAnimations();
+      initProjectsGallery();
+      initNavScroll();
+      initCardTilt();
+      initMagneticButtons();
+
+      // Refresh ScrollTrigger after everything is set up
+      ScrollTrigger.refresh();
+    });
+  });
 
   // Close modal on overlay click
   $('adminModal').addEventListener('click', function (e) {
     if (e.target === this) closeAdmin();
+  });
+
+  // Handle resize — refresh ScrollTrigger
+  let resizeTimeout;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+      ScrollTrigger.refresh();
+    }, 300);
   });
 });
