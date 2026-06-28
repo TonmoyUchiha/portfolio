@@ -74,29 +74,33 @@
   <a href="#contact-section">Contact</a>
 </div>
 
-<!-- ═══════════════════════════════════════════
-     MAIN CONTENT — Scroll-driven experience
-     ═══════════════════════════════════════════ -->
-<main id="smooth-content">
+<!-- ═══ PHANTOM SCROLL HEIGHT DRIVER ═══ -->
+<div id="scroll-container"></div>
 
-  <!-- ═══ HERO ═══ -->
-  <section class="section hero-section" id="hero">
-    <div class="hero-bg">
+<!-- ═══════════════════════════════════════════
+     FIXED SCENE LAYER — All scenes overlap here
+     Scroll progress drives the master timeline
+     ═══════════════════════════════════════════ -->
+<div id="fixed-scenes" aria-live="polite">
+
+  <!-- ═══ SCENE 0: HERO ═══ -->
+  <div class="scene" id="scene-hero" data-scene="0">
+    <div class="scene-bg hero-scene-bg">
       <div class="hero-glow hero-glow--1"></div>
       <div class="hero-glow hero-glow--2"></div>
       <div class="hero-glow hero-glow--3"></div>
       <div class="hero-grid"></div>
-      <div class="hero-floating" id="hero-floating">
-        <div class="float-el float-circle-1"></div>
-        <div class="float-el float-circle-2"></div>
-        <div class="float-el float-line-1"></div>
-        <div class="float-el float-line-2"></div>
-        <div class="float-el float-dot-1"></div>
-        <div class="float-el float-dot-2"></div>
-        <div class="float-el float-cross"></div>
-      </div>
+      <canvas id="hero-particles" aria-hidden="true"></canvas>
     </div>
-
+    <div class="hero-floating" id="hero-floating" aria-hidden="true">
+      <div class="float-el float-circle-1"></div>
+      <div class="float-el float-circle-2"></div>
+      <div class="float-el float-line-1"></div>
+      <div class="float-el float-line-2"></div>
+      <div class="float-el float-dot-1"></div>
+      <div class="float-el float-dot-2"></div>
+      <div class="float-el float-cross"></div>
+    </div>
     <div class="hero-content" id="hero-content">
       <h1 class="hero-name" id="hero-name-el"></h1>
       <div class="hero-titles">
@@ -108,92 +112,122 @@
         <a href="#" class="btn btn-outline magnetic" id="hero-cta2-el">Download CV</a>
       </div>
     </div>
-
     <div class="scroll-indicator" id="scroll-indicator">
       <span>Scroll</span>
       <div class="scroll-line"></div>
     </div>
-  </section>
+  </div>
 
-  <!-- ═══ ABOUT ═══ -->
-  <section class="section about-section" id="about">
-    <div class="section-inner">
-      <div class="section-label">01 — About</div>
-      <h2 class="section-heading" id="about-title-el">Who I Am</h2>
-      <div class="about-content">
-        <div class="about-text" id="about-text-el"></div>
-        <div class="about-interests">
-          <div class="interests-label">Interests & Passions</div>
+  <!-- ═══ SCENE 1: ABOUT ═══ -->
+  <div class="scene" id="scene-about" data-scene="1">
+    <div class="scene-bg about-scene-bg">
+      <div class="about-glow-bloom" aria-hidden="true"></div>
+      <div class="about-shape-left" aria-hidden="true"></div>
+    </div>
+    <div class="about-scene-watermark" aria-hidden="true">ABOUT</div>
+    <div class="about-scene-inner">
+      <div class="about-scene-content">
+        <div class="about-bio-col">
+          <div class="section-label">01 — About</div>
+          <h2 class="section-heading" id="about-title-el">Who I Am</h2>
+          <div class="about-text" id="about-text-el"></div>
+        </div>
+        <div class="about-interests-col">
+          <div class="interests-label">Interests &amp; Passions</div>
           <div class="interests-grid" id="interests-el"></div>
         </div>
       </div>
     </div>
-  </section>
+    <div class="about-mouse-circle" id="about-mouse-circle" aria-hidden="true"></div>
+  </div>
 
-  <!-- ═══ SKILLS ═══ -->
-  <section class="section skills-section" id="skills">
-    <div class="section-inner">
-      <div class="section-label">02 — Skills</div>
-      <h2 class="section-heading">What I Do</h2>
-      <div class="skills-grid" id="skills-el"></div>
-    </div>
-  </section>
-
-  <!-- ═══ EXPERIENCE ═══ -->
-  <section class="section experience-section" id="experience">
-    <div class="section-inner">
-      <div class="section-label">03 — Experience</div>
-      <h2 class="section-heading">Where I've Been</h2>
-      <div class="timeline" id="experience-el">
-        <div class="timeline-line"><div class="timeline-line-fill" id="timeline-line-fill"></div></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ═══ PROJECTS — Horizontal Pinned Gallery ═══ -->
-  <section class="section projects-section" id="projects">
-    <div class="projects-header">
+  <!-- ═══ SCENE 2: PROJECTS ═══ -->
+  <div class="scene" id="scene-projects" data-scene="2">
+    <div class="scene-bg projects-scene-bg" id="projects-scene-bg"></div>
+    <div class="projects-scene-header">
       <div class="section-label">04 — Projects</div>
-      <h2 class="section-heading">Selected Work</h2>
+      <div class="projects-progress-dots" id="projects-dots"></div>
     </div>
-    <div class="projects-track" id="projects-el"></div>
+    <div class="projects-gallery-viewport">
+      <div class="projects-track" id="projects-el"></div>
+    </div>
+    <div class="proj-prev-ghost" id="proj-prev-ghost" aria-hidden="true"></div>
+    <div class="proj-next-ghost" id="proj-next-ghost" aria-hidden="true"></div>
     <div class="projects-progress">
       <div class="projects-progress-bar" id="projects-progress-bar"></div>
     </div>
-  </section>
+  </div>
 
-  <!-- ═══ EDUCATION ═══ -->
-  <section class="section education-section" id="education">
-    <div class="section-inner">
-      <div class="section-label">05 — Education</div>
-      <h2 class="section-heading">Academic Journey</h2>
-      <div class="edu-grid" id="education-el"></div>
+  <!-- ═══ SCENE 3: SKILLS ═══ -->
+  <div class="scene" id="scene-skills" data-scene="3">
+    <div class="scene-bg skills-scene-bg">
+      <div class="skills-ring skills-ring--1" aria-hidden="true"></div>
+      <div class="skills-ring skills-ring--2" aria-hidden="true"></div>
+      <div class="skills-ring skills-ring--3" aria-hidden="true"></div>
+      <div class="skills-ring skills-ring--4" aria-hidden="true"></div>
+      <div class="skills-ring skills-ring--5" aria-hidden="true"></div>
     </div>
-  </section>
+    <div class="skills-center-label" aria-hidden="true">SKILLS</div>
+    <div class="skills-orbit skills-orbit--top"    id="skills-orbit-0"></div>
+    <div class="skills-orbit skills-orbit--right"  id="skills-orbit-1"></div>
+    <div class="skills-orbit skills-orbit--bottom" id="skills-orbit-2"></div>
+    <div class="skills-orbit skills-orbit--left"   id="skills-orbit-3"></div>
+    <!-- Hidden grid — renderPortfolio() writes here; syncSkillsOrbit() mirrors to orbits -->
+    <div class="skills-grid" id="skills-el" aria-hidden="true" style="display:none"></div>
+  </div>
 
-  <!-- ═══ WHAT'S NEXT ═══ -->
-  <section class="section next-section" id="next">
-    <div class="section-inner">
-      <div class="section-label">06 — What's Next</div>
-      <h2 class="section-heading">Currently Pursuing</h2>
-      <div class="next-grid" id="next-el"></div>
+  <!-- ═══ SCENE 4: EXPERIENCE ═══ -->
+  <div class="scene" id="scene-experience" data-scene="4">
+    <div class="scene-bg experience-scene-bg">
+      <div class="exp-timeline-lines" aria-hidden="true"></div>
     </div>
-  </section>
+    <div class="exp-scene-inner">
+      <div class="section-label">03 — Experience</div>
+      <h2 class="section-heading exp-heading">Where I've Been</h2>
+      <div class="timeline" id="experience-el">
+        <div class="timeline-line">
+          <div class="timeline-line-fill" id="timeline-line-fill"></div>
+        </div>
+      </div>
+    </div>
+  </div>
 
-  <!-- ═══ CONTACT ═══ -->
-  <section class="section contact-section" id="contact-section">
-    <div class="section-inner contact-inner">
-      <div class="section-label">07 — Contact</div>
+  <!-- ═══ SCENE 5: CONTACT (+ Education prelude) ═══ -->
+  <div class="scene" id="scene-contact" data-scene="5">
+    <div class="scene-bg contact-scene-bg">
+      <div class="contact-ray contact-ray--1" aria-hidden="true"></div>
+      <div class="contact-ray contact-ray--2" aria-hidden="true"></div>
+      <div class="contact-ray contact-ray--3" aria-hidden="true"></div>
+      <div class="contact-ambient" aria-hidden="true"></div>
+    </div>
+
+    <!-- Act 1: Education + What's Next prelude -->
+    <div class="contact-prelude" id="contact-prelude">
+      <div class="contact-prelude-inner">
+        <div class="prelude-col">
+          <div class="section-label">05 — Education</div>
+          <h2 class="section-heading prelude-heading">Academic Journey</h2>
+          <div class="edu-grid" id="education-el"></div>
+        </div>
+        <div class="prelude-col">
+          <div class="section-label">06 — What's Next</div>
+          <h2 class="section-heading prelude-heading">Currently Pursuing</h2>
+          <div class="next-grid" id="next-el"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Act 2: Main contact CTA -->
+    <div class="contact-main" id="contact-main">
+      <div class="section-label contact-scene-label">07 — Contact</div>
       <h2 class="contact-heading" id="contact-title-el">Let's Talk</h2>
       <p class="contact-tagline" id="contact-tagline-el"></p>
       <div class="contact-links" id="contact-links-el"></div>
+      <footer id="footer-el"></footer>
     </div>
-  </section>
+  </div>
 
-  <!-- ═══ FOOTER ═══ -->
-  <footer id="footer-el"></footer>
-
-</main>
+</div><!-- /#fixed-scenes -->
 
 <!-- ═══ PASSWORD MODAL ═══ -->
 <div class="modal-overlay" id="passwordModal">

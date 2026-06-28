@@ -191,6 +191,13 @@ async function loadData() {
     if (res.ok) {
       const serverData = await res.json();
       DATA = { ...deepClone(DEFAULT_DATA), ...serverData };
+    } else if (res.status === 404) {
+      // DB is empty — seed it with the default data so subsequent loads work
+      fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(DEFAULT_DATA)
+      }).catch(() => {});
     }
   } catch (e) {
     console.warn('Using default data — server unavailable.', e.message);
@@ -366,7 +373,8 @@ function typewrite() {
 
 
 /* ═══════════════════════════════════════════
-   LENIS SMOOTH SCROLL
+   LENIS SMOOTH SCROLL (legacy — kept for
+   reduced-motion fallback path only)
    ═══════════════════════════════════════════ */
 let lenis = null;
 
@@ -374,14 +382,13 @@ function initLenis() {
   if (prefersReducedMotion) return;
 
   lenis = new Lenis({
-    duration: 1.2,
+    duration: 1.0,
     easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
     orientation: 'vertical',
     smoothWheel: true,
     touchMultiplier: 1.5,
   });
 
-  // Connect to GSAP
   lenis.on('scroll', ScrollTrigger.update);
 
   gsap.ticker.add((time) => {
@@ -583,8 +590,7 @@ function initPreloader(onComplete) {
    ═══════════════════════════════════════════ */
 function initHeroAnimations() {
   if (prefersReducedMotion) {
-    // Just show everything
-    gsap.set(['.hero-name .word', '.hero-tagline', '.hero-cta', '.scroll-indicator', '.float-el', '#main-nav'], {
+    gsap.set(['.hero-name .char', '.hero-name .word', '.hero-tagline', '.hero-cta', '.scroll-indicator', '.float-el', '#main-nav'], {
       opacity: 1, y: 0, x: 0, scale: 1,
     });
     $('main-nav').classList.add('visible');
@@ -593,15 +599,13 @@ function initHeroAnimations() {
 
   const tl = gsap.timeline({ delay: 0.1 });
 
-  // Hero name — words stagger in
-  tl.from('.hero-name .word', {
-    y: 80,
+  // Hero name — chars reveal upward (matches the .char exit in master timeline)
+  tl.from('.hero-name .char', {
+    y: '110%',
     opacity: 0,
-    rotateX: 45,
-    stagger: 0.08,
-    duration: 0.9,
+    stagger: { each: 0.025, from: 'left' },
+    duration: 0.7,
     ease: 'power3.out',
-    transformOrigin: 'bottom',
   });
 
   // Tagline
@@ -641,36 +645,41 @@ function initHeroAnimations() {
     $('main-nav').classList.add('visible');
   }, '-=0.3');
 
-  // Hero scroll-away animation
-  gsap.to('.hero-content', {
-    y: -100,
-    opacity: 0,
-    scale: 0.95,
-    scrollTrigger: {
-      trigger: '.hero-section',
-      start: 'top top',
-      end: 'bottom 60%',
-      scrub: 1.5,
-    },
-  });
+  // Hero scroll-away animation (only for legacy/fallback path)
+  if (!SceneSystem.active) {
+    gsap.to('.hero-content', {
+      y: -100,
+      opacity: 0,
+      scale: 0.95,
+      scrollTrigger: {
+        trigger: '#scene-hero',
+        start: 'top top',
+        end: 'bottom 60%',
+        scrub: 1.5,
+      },
+    });
 
-  gsap.to('#scroll-indicator', {
-    opacity: 0,
-    y: 20,
-    scrollTrigger: {
-      trigger: '.hero-section',
-      start: 'top top',
-      end: '15% top',
-      scrub: 1,
-    },
-  });
+    gsap.to('#scroll-indicator', {
+      opacity: 0,
+      y: 20,
+      scrollTrigger: {
+        trigger: '#scene-hero',
+        start: 'top top',
+        end: '15% top',
+        scrub: 1,
+      },
+    });
+  }
 }
 
 
 /* ═══════════════════════════════════════════
    HERO MOUSE PARALLAX (floating elements)
+   Delegated to SceneSystem.initMouseTracking
+   when scene system is active.
    ═══════════════════════════════════════════ */
 function initHeroParallax() {
+  if (SceneSystem.active) return; // scene system handles this
   if (prefersReducedMotion || window.innerWidth < 768) return;
 
   const floatingEls = document.querySelectorAll('.float-el');
@@ -678,7 +687,10 @@ function initHeroParallax() {
 
   const speeds = [0.03, 0.02, 0.04, 0.025, 0.035, 0.015, 0.03];
 
-  document.querySelector('.hero-section').addEventListener('mousemove', (e) => {
+  const heroEl = document.querySelector('#scene-hero') || document.querySelector('.hero-section');
+  if (!heroEl) return;
+
+  heroEl.addEventListener('mousemove', (e) => {
     const cx = window.innerWidth / 2;
     const cy = window.innerHeight / 2;
     const dx = (e.clientX - cx) / cx;
@@ -698,9 +710,1021 @@ function initHeroParallax() {
 
 
 /* ═══════════════════════════════════════════
+   SPLIT TYPE INITIALIZER
+   Must run after renderPortfolio() injects text.
+   Re-runs after admin saves.
+   ═══════════════════════════════════════════ */
+function initSplitType() {
+  if (typeof SplitType === 'undefined') return;
+
+  // Hero name into chars for scatter-exit animation
+  const heroName = $('hero-name-el');
+  if (heroName && heroName.textContent.trim()) {
+    new SplitType(heroName, { types: 'chars,words' });
+  }
+
+  // About heading chars
+  const aboutTitle = $('about-title-el');
+  if (aboutTitle && aboutTitle.textContent.trim()) {
+    new SplitType(aboutTitle, { types: 'chars,words' });
+  }
+
+  // About paragraphs into lines for clip reveal
+  const aboutText = $('about-text-el');
+  if (aboutText && aboutText.textContent.trim()) {
+    new SplitType(aboutText, { types: 'lines' });
+  }
+
+  // Contact heading chars
+  const contactTitle = $('contact-title-el');
+  if (contactTitle && contactTitle.textContent.trim()) {
+    new SplitType(contactTitle, { types: 'chars,words' });
+  }
+
+  // Experience heading
+  const expHeading = document.querySelector('.exp-heading');
+  if (expHeading && expHeading.textContent.trim()) {
+    new SplitType(expHeading, { types: 'chars,words' });
+  }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   SCENE SYSTEM
+   Virtual scroll + fixed-viewport scene engine.
+   All animations are coordinated through a single master GSAP
+   timeline scrubbed by ScrollTrigger watching #scroll-container.
+   ═══════════════════════════════════════════════════════════════ */
+const SceneSystem = {
+  active: false,
+  currentScene: 0,
+  scrollVH: 800,      // total phantom scroll height in vh
+  lenis: null,
+  masterTL: null,
+  _targetProg: 0,
+  _currProg: 0,
+  _scrollHandler: null,
+  _tickerFn: null,
+
+  // Called from DOMContentLoaded after preloader finishes
+  init() {
+    if (prefersReducedMotion) {
+      this.initReducedMotionFallback();
+      return;
+    }
+
+    this.active = true;
+
+    // Set mobile scroll height
+    if (window.innerWidth < 768) {
+      this.scrollVH = 600;
+    }
+
+    // Set phantom scroll container height (scrollVH is in vh units)
+    const sc = $('scroll-container');
+    if (sc) sc.style.height = this.scrollVH + 'vh';
+
+    // All scenes start invisible except hero
+    gsap.set('.scene', { opacity: 0, visibility: 'hidden' });
+    gsap.set('#scene-hero', { opacity: 1, visibility: 'visible' });
+
+    this.initLenis();
+    this.initMouseTracking();
+    this.initParticleCanvas();
+
+    // Handle resize — update scroll height and recalculate progress
+    let rto;
+    window.addEventListener('resize', () => {
+      clearTimeout(rto);
+      rto = setTimeout(() => {
+        if (sc) sc.style.height = this.scrollVH + 'vh';
+        if (this._scrollHandler) this._scrollHandler();
+        ScrollTrigger.refresh();
+      }, 250);
+    });
+  },
+
+  initLenis() {
+    // Removed Lenis — it called preventDefault() on wheel events which silently
+    // bricked scrolling when its internal raf had any issue (Edge + unpkg CDN).
+    // Now using native window scroll driven by GSAP ticker in buildMasterTimeline().
+    this.lenis = null;
+  },
+
+  // Maps scroll progress [0,1] → master timeline seconds (piecewise linear).
+  // Allocates a fixed scroll fraction to each scene regardless of how many
+  // seconds that scene occupies in the GSAP timeline.
+  _progressToTime(p) {
+    const dur = this.masterTL ? this.masterTL.duration() : 5.43;
+    // Breakpoints land in the cross-fade zone between each pair of scenes
+    // (prev scene exiting + next scene entering), so every scene's full
+    // reveal→enter→hold→exit cycle falls inside its own scroll window.
+    const pts = [
+      [0,    0],
+      [0.12, 0.45],    // hero → about
+      [0.26, 1.20],    // about → projects
+      [0.56, 2.58],    // projects → skills
+      [0.70, 3.38],    // skills → experience
+      [0.84, 4.10],    // experience → contact
+      [1.00, dur],     // contact fully done
+    ];
+    for (let i = 1; i < pts.length; i++) {
+      if (p <= pts[i][0]) {
+        const [p0, t0] = pts[i - 1];
+        const [p1, t1] = pts[i];
+        return t0 + (p - p0) / (p1 - p0) * (t1 - t0);
+      }
+    }
+    return dur;
+  },
+
+  // Build the master timeline and wire ScrollTrigger
+  // Called inside preloader callback (after DOM is stable)
+  buildMasterTimeline() {
+    ScrollTrigger.getAll().forEach(st => st.kill());
+
+    const tl = gsap.timeline({ paused: true });
+    this.masterTL = tl;
+
+    try {
+      this.buildHeroScene(tl);
+      this.buildAboutScene(tl);
+      this.buildProjectsScene(tl);
+      this.buildSkillsScene(tl);
+      this.buildExperienceScene(tl);
+      this.buildContactScene(tl);
+    } catch (err) {
+      console.error('[SceneSystem] buildMasterTimeline failed:', err);
+    }
+
+    // Clean up any previous handler/ticker from a prior buildMasterTimeline call
+    if (this._scrollHandler) window.removeEventListener('scroll', this._scrollHandler);
+    if (this._tickerFn) gsap.ticker.remove(this._tickerFn);
+    this._targetProg = 0;
+    this._currProg   = 0;
+
+    // Drive master timeline directly from window.scrollY.
+    // No Lenis, no ScrollTrigger — just native scroll + GSAP ticker lerp.
+    const onScroll = () => {
+      const total = document.documentElement.scrollHeight - window.innerHeight;
+      this._targetProg = total > 0 ? Math.min(1, window.scrollY / total) : 0;
+      const nav = $('main-nav');
+      if (nav) nav.classList.toggle('scrolled', this._targetProg > 0.01);
+
+      // Derive the active scene from scroll progress. The in-timeline
+      // tl.call(onSceneChange) hooks are suppressed by masterTL.seek(),
+      // so we drive nav highlight + per-scene mouse parallax from here.
+      const p = this._targetProg;
+      const idx = p < 0.12 ? 0 : p < 0.26 ? 1 : p < 0.56 ? 2 : p < 0.70 ? 3 : p < 0.84 ? 4 : 5;
+      if (idx !== this.currentScene) this.onSceneChange(idx);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    this._scrollHandler = onScroll;
+
+    const tickerFn = () => {
+      if (!this.masterTL) return;
+      const diff = this._targetProg - this._currProg;
+      if (Math.abs(diff) < 0.00005) return;
+      this._currProg += diff * 0.12;
+      this.masterTL.seek(this._progressToTime(this._currProg));
+    };
+    gsap.ticker.add(tickerFn);
+    this._tickerFn = tickerFn;
+  },
+
+  // ── SCENE 0: HERO EXIT ──
+  // Hero enter is handled by initHeroAnimations() on preloader complete.
+  // This segment only defines the exit to About.
+  buildHeroScene(tl) {
+    tl.addLabel('hero-exit', 0);
+
+    // Name chars scatter outward
+    tl.to('#hero-name-el .char', {
+      y: '-130%',
+      opacity: 0,
+      stagger: { each: 0.018, from: 'center' },
+      ease: 'power3.in',
+      duration: 0.4,
+    }, 'hero-exit');
+
+    // Tagline and CTAs blur up
+    tl.to(['.hero-tagline', '.hero-cta', '#scroll-indicator'], {
+      filter: 'blur(10px)',
+      opacity: 0,
+      y: -25,
+      stagger: 0.04,
+      ease: 'power2.in',
+      duration: 0.28,
+    }, 'hero-exit+=0.08');
+
+    // Glows expand and dissolve
+    tl.to('.hero-glow', {
+      scale: 2.8,
+      opacity: 0,
+      ease: 'power2.in',
+      duration: 0.35,
+    }, 'hero-exit');
+
+    // Float elements scatter
+    tl.to('.float-el', {
+      x: () => gsap.utils.random(-350, 350),
+      y: () => gsap.utils.random(-350, 350),
+      opacity: 0,
+      scale: 0,
+      stagger: 0.025,
+      ease: 'power3.in',
+      duration: 0.32,
+    }, 'hero-exit+=0.04');
+
+    // Particles fade
+    tl.to('#hero-particles', { opacity: 0, duration: 0.2 }, 'hero-exit');
+
+    // Hero out, About in
+    tl.to('#scene-hero', { opacity: 0, visibility: 'hidden', duration: 0.08 }, 'hero-exit+=0.4');
+    tl.to('#scene-about', { opacity: 1, visibility: 'visible', duration: 0.08 }, 'hero-exit+=0.38');
+
+    this.onSceneChange(0);
+    tl.call(() => this.onSceneChange(1), [], 'hero-exit+=0.38');
+
+    tl.addLabel('hero-done', 0.45);
+  },
+
+  // ── SCENE 1: ABOUT ──
+  buildAboutScene(tl) {
+    tl.addLabel('about-enter', 0.42);
+    tl.addLabel('about-peak',  0.55);
+    tl.addLabel('about-exit',  1.05);
+
+    // Amber glow blooms from bottom-left
+    tl.from('.about-glow-bloom', {
+      scale: 0,
+      opacity: 0,
+      x: -120,
+      ease: 'power2.out',
+      duration: 0.32,
+    }, 'about-enter');
+
+    // Glassmorphic shape slides from left
+    tl.from('.about-shape-left', {
+      x: '-110%',
+      opacity: 0,
+      scale: 0.85,
+      ease: 'power3.out',
+      duration: 0.38,
+    }, 'about-enter+=0.04');
+
+    // Section label
+    tl.from('#scene-about .section-label', {
+      opacity: 0,
+      y: 25,
+      ease: 'power2.out',
+      duration: 0.28,
+    }, 'about-enter+=0.1');
+
+    // Heading chars drop in
+    tl.from('#about-title-el .char', {
+      y: '115%',
+      opacity: 0,
+      stagger: { each: 0.022, from: 'left' },
+      ease: 'power3.out',
+      duration: 0.32,
+    }, 'about-enter+=0.15');
+
+    // Paragraph lines clip upward
+    tl.from('#about-text-el .line', {
+      y: '105%',
+      opacity: 0,
+      stagger: 0.055,
+      ease: 'power2.out',
+      duration: 0.22,
+      clipPath: 'inset(0 0 100% 0)',
+    }, 'about-enter+=0.22');
+
+    // Interest tags fly from left
+    tl.from('.interest-tag', {
+      x: -55,
+      opacity: 0,
+      stagger: 0.022,
+      ease: 'power3.out',
+      duration: 0.18,
+    }, 'about-enter+=0.38');
+
+    // Mouse circle fades in
+    tl.to('#about-mouse-circle', { opacity: 1, duration: 0.28 }, 'about-enter+=0.2');
+
+    // EXIT: page-turn clip from right
+    tl.to('#scene-about', {
+      clipPath: 'inset(0 100% 0 0)',
+      ease: 'power3.inOut',
+      duration: 0.28,
+    }, 'about-exit');
+
+    tl.to('#scene-about', { visibility: 'hidden', duration: 0.01 }, 'about-exit+=0.28');
+    tl.to('#scene-projects', { opacity: 1, visibility: 'visible', duration: 0.01 }, 'about-exit+=0.14');
+    tl.call(() => this.onSceneChange(2), [], 'about-exit+=0.14');
+
+    tl.addLabel('about-done', 1.20);
+  },
+
+  // ── SCENE 2: PROJECTS ──
+  // Gets 3× scroll window (0.25 → 0.625) for horizontal carousel
+  buildProjectsScene(tl) {
+    tl.addLabel('proj-enter', 1.15);
+    tl.addLabel('proj-exit',  2.55);
+
+    const track   = $('projects-el');
+    const slides  = track ? Array.from(track.querySelectorAll('.project-slide')) : [];
+    const numSlides = slides.length || 1;
+
+    // ENTER: header drops from top
+    tl.from('.projects-scene-header', {
+      y: -55,
+      opacity: 0,
+      ease: 'power3.out',
+      duration: 0.18,
+    }, 'proj-enter');
+
+    // ENTER: first slide scales in from depth
+    if (slides[0]) {
+      tl.from(slides[0], {
+        scale: 0.82,
+        opacity: 0,
+        filter: 'blur(18px)',
+        ease: 'power3.out',
+        duration: 0.22,
+      }, 'proj-enter+=0.08');
+    }
+
+    // Ghost cards appear
+    tl.from(['#proj-prev-ghost', '#proj-next-ghost'], {
+      opacity: 0,
+      x: (i) => i === 0 ? -30 : 30,
+      ease: 'power2.out',
+      stagger: 0.04,
+      duration: 0.22,
+    }, 'proj-enter+=0.18');
+
+    // First dot active
+    tl.call(() => {
+      document.querySelectorAll('.proj-dot').forEach((d, i) => {
+        d.classList.toggle('active', i === 0);
+      });
+    }, [], 'proj-enter+=0.05');
+
+    // HORIZONTAL CAROUSEL: subdivide proj-enter → proj-exit across slides
+    const winStart  = 1.15;
+    const winEnd    = 2.55;
+    const winSpan   = winEnd - winStart;
+    const slideStep = winSpan / numSlides;
+
+    slides.forEach((slide, idx) => {
+      if (idx === 0) return;
+
+      const segStart = winStart + idx * slideStep;
+
+      // Slide track forward
+      const slideWidth = () => {
+        if (!slides[0]) return window.innerWidth * 0.78;
+        const rect = slides[0].getBoundingClientRect();
+        const gap = window.innerWidth * 0.03;
+        return rect.width + gap;
+      };
+
+      tl.to(track, {
+        x: () => -idx * slideWidth(),
+        ease: 'power2.inOut',
+        duration: slideStep * 0.7,
+      }, segStart);
+
+      // 3D tilt adjacent cards
+      slides.forEach((other, j) => {
+        const dist = j - idx;
+        tl.to(other, {
+          rotateY: dist === 0 ? 0 : (dist > 0 ? -14 : 14),
+          scale:   dist === 0 ? 1 : 0.9,
+          filter:  dist === 0 ? 'blur(0px)' : `blur(${Math.min(Math.abs(dist) * 2, 5)}px)`,
+          opacity: Math.abs(dist) > 1 ? 0.35 : (dist === 0 ? 1 : 0.65),
+          ease: 'power2.inOut',
+          duration: slideStep * 0.7,
+        }, segStart);
+      });
+
+      // Update dots
+      tl.call(() => {
+        document.querySelectorAll('.proj-dot').forEach((d, i) => {
+          d.classList.toggle('active', i === idx);
+        });
+      }, [], segStart + slideStep * 0.35);
+
+      // Content fades in
+      const content = slide.querySelector('.project-content');
+      if (content) {
+        tl.from(content, {
+          y: 35,
+          opacity: 0,
+          ease: 'power3.out',
+          duration: slideStep * 0.5,
+        }, segStart + slideStep * 0.25);
+      }
+
+      // Number parallax
+      const num = slide.querySelector('.project-number');
+      if (num) {
+        tl.fromTo(num, { x: 55 }, { x: -55, ease: 'none', duration: slideStep }, segStart);
+      }
+    });
+
+    // Progress bar
+    tl.fromTo('#projects-progress-bar',
+      { scaleX: 0 },
+      { scaleX: 1, ease: 'none', duration: winSpan },
+      winStart
+    );
+
+    // EXIT: blur scale out
+    tl.to('#scene-projects', {
+      scale: 1.07,
+      filter: 'blur(14px)',
+      opacity: 0,
+      ease: 'power2.in',
+      duration: 0.075,
+    }, 'proj-exit');
+
+    tl.to('#scene-projects', { visibility: 'hidden', duration: 0.01 }, 'proj-exit+=0.075');
+    tl.to('#scene-skills',   { opacity: 1, visibility: 'visible', duration: 0.01 }, 'proj-exit+=0.04');
+    tl.call(() => this.onSceneChange(3), [], 'proj-exit+=0.04');
+
+    tl.addLabel('proj-done', 2.58);
+  },
+
+  // ── SCENE 3: SKILLS ──
+  buildSkillsScene(tl) {
+    tl.addLabel('skills-enter', 2.60);
+    tl.addLabel('skills-exit',  3.25);
+
+    // Rings expand elastically
+    tl.to('.skills-ring', {
+      scale: 1,
+      opacity: 1,
+      stagger: 0.038,
+      ease: 'elastic.out(1, 0.55)',
+      duration: 0.32,
+    }, 'skills-enter');
+
+    // Center label
+    tl.to('.skills-center-label', {
+      opacity: 1,
+      ease: 'power3.out',
+      duration: 0.18,
+    }, 'skills-enter+=0.15');
+
+    // Orbit quadrants fly from edges
+    tl.from('#skills-orbit-0', { y: -130, opacity: 0, ease: 'power3.out', duration: 0.28 }, 'skills-enter+=0.18');
+    tl.from('#skills-orbit-1', { x:  130, opacity: 0, ease: 'power3.out', duration: 0.28 }, 'skills-enter+=0.22');
+    tl.from('#skills-orbit-2', { y:  130, opacity: 0, ease: 'power3.out', duration: 0.28 }, 'skills-enter+=0.26');
+    tl.from('#skills-orbit-3', { x: -130, opacity: 0, ease: 'power3.out', duration: 0.28 }, 'skills-enter+=0.30');
+
+    // Chips materialize
+    tl.from('.orbit-chip', {
+      scale: 0,
+      opacity: 0,
+      stagger: { each: 0.013, from: 'random' },
+      ease: 'back.out(2.2)',
+      duration: 0.18,
+    }, 'skills-enter+=0.36');
+
+    // EXIT: chips collapse to center
+    tl.to(['.orbit-chip', '.orbit-category-label'], {
+      scale: 0,
+      opacity: 0,
+      stagger: { each: 0.008, from: 'random' },
+      ease: 'power2.in',
+      duration: 0.18,
+    }, 'skills-exit');
+
+    tl.to('.skills-ring, .skills-center-label', {
+      scale: 0,
+      opacity: 0,
+      ease: 'power2.in',
+      duration: 0.14,
+    }, 'skills-exit+=0.06');
+
+    tl.to('#skills-orbit-0, #skills-orbit-1, #skills-orbit-2, #skills-orbit-3', {
+      opacity: 0,
+      ease: 'power2.in',
+      duration: 0.12,
+    }, 'skills-exit');
+
+    tl.to('#scene-skills',     { opacity: 0, visibility: 'hidden', duration: 0.05 }, 'skills-exit+=0.2');
+    tl.to('#scene-experience', { opacity: 1, visibility: 'visible', duration: 0.01 }, 'skills-exit+=0.15');
+    tl.call(() => this.onSceneChange(4), [], 'skills-exit+=0.15');
+
+    tl.addLabel('skills-done', 3.38);
+  },
+
+  // ── SCENE 4: EXPERIENCE ──
+  buildExperienceScene(tl) {
+    tl.addLabel('exp-enter', 3.35);
+    tl.addLabel('exp-exit',  3.97);
+
+    // Background horizontal lines fade in
+    tl.to('.exp-timeline-lines', {
+      opacity: 1,
+      ease: 'power2.out',
+      duration: 0.22,
+    }, 'exp-enter');
+
+    // Section label
+    tl.from('#scene-experience .section-label', {
+      opacity: 0,
+      y: 20,
+      ease: 'power2.out',
+      duration: 0.2,
+    }, 'exp-enter+=0.08');
+
+    // Heading chars descend from top
+    tl.from('.exp-heading .char', {
+      y: '-115%',
+      opacity: 0,
+      stagger: { each: 0.02, from: 'left' },
+      ease: 'power3.out',
+      duration: 0.28,
+    }, 'exp-enter+=0.12');
+
+    // Timeline line draws downward
+    tl.from('#timeline-line-fill', {
+      height: '0%',
+      ease: 'power2.inOut',
+      duration: 0.38,
+    }, 'exp-enter+=0.18');
+
+    // Timeline items slide from left
+    tl.to('.tl-item', {
+      x: 0,
+      opacity: 1,
+      stagger: 0.065,
+      ease: 'power3.out',
+      duration: 0.28,
+    }, 'exp-enter+=0.25');
+
+    // Dots glow on
+    tl.to('.tl-dot', {
+      background: 'var(--accent)',
+      boxShadow: '0 0 15px rgba(196, 163, 90, 0.4)',
+      stagger: 0.065,
+      ease: 'power2.out',
+      duration: 0.18,
+      onComplete: () => {
+        document.querySelectorAll('.tl-item').forEach(el => el.classList.add('active'));
+      },
+    }, 'exp-enter+=0.38');
+
+    // EXIT: content lifts up
+    tl.to('.exp-scene-inner', {
+      y: -45,
+      opacity: 0,
+      ease: 'power2.in',
+      duration: 0.18,
+    }, 'exp-exit');
+
+    tl.to('.exp-timeline-lines', { opacity: 0, duration: 0.18 }, 'exp-exit');
+
+    tl.to('#scene-experience', { opacity: 0, visibility: 'hidden', duration: 0.05 }, 'exp-exit+=0.2');
+    tl.to('#scene-contact',    { opacity: 1, visibility: 'visible', duration: 0.01 }, 'exp-exit+=0.15');
+    tl.call(() => this.onSceneChange(5), [], 'exp-exit+=0.15');
+
+    tl.addLabel('exp-done', 4.10);
+  },
+
+  // ── SCENE 5: CONTACT (prelude → main) ──
+  buildContactScene(tl) {
+    tl.addLabel('contact-enter',      4.10);
+    tl.addLabel('contact-main-enter', 4.60);
+
+    // Light rays expand from center
+    tl.to('.contact-ray', {
+      height: '62vh',
+      opacity: 1,
+      stagger: 0.04,
+      ease: 'power2.out',
+      duration: 0.28,
+    }, 'contact-enter');
+
+    // Prelude: edu cards
+    tl.from('.edu-card', {
+      y: 48,
+      opacity: 0,
+      stagger: 0.048,
+      ease: 'power3.out',
+      duration: 0.24,
+    }, 'contact-enter+=0.1');
+
+    // Prelude: next cards
+    tl.from('.next-card', {
+      scale: 0.88,
+      opacity: 0,
+      stagger: 0.048,
+      ease: 'back.out(1.5)',
+      duration: 0.24,
+    }, 'contact-enter+=0.2');
+
+    // Sub-transition: prelude exits upward
+    tl.to('#contact-prelude', {
+      y: '-105%',
+      opacity: 0,
+      ease: 'power3.inOut',
+      duration: 0.22,
+    }, 'contact-main-enter');
+
+    // Main contact appears
+    tl.to('#contact-main', {
+      opacity: 1,
+      visibility: 'visible',
+      duration: 0.01,
+    }, 'contact-main-enter+=0.08');
+
+    // Heading chars reveal
+    tl.from('#contact-title-el .char', {
+      y: '125%',
+      opacity: 0,
+      stagger: { each: 0.025, from: 'left' },
+      ease: 'power4.out',
+      duration: 0.32,
+    }, 'contact-main-enter+=0.1');
+
+    // Tagline fades in
+    tl.to('#contact-tagline-el', {
+      opacity: 1,
+      y: 0,
+      ease: 'power2.out',
+      duration: 0.24,
+    }, 'contact-main-enter+=0.3');
+
+    // Contact links
+    tl.from('.contact-link', {
+      opacity: 0,
+      y: 28,
+      scale: 0.92,
+      stagger: 0.07,
+      ease: 'power3.out',
+      duration: 0.26,
+    }, 'contact-main-enter+=0.42');
+
+    // Footer
+    tl.from('#footer-el', {
+      opacity: 0,
+      duration: 0.28,
+    }, 'contact-main-enter+=0.55');
+
+    tl.addLabel('contact-done', 5.45);
+  },
+
+  // Mirror skill data from hidden #skills-el into the orbit divs
+  syncSkillsOrbit() {
+    const skillCards = document.querySelectorAll('#skills-el .skill-card');
+    const orbits = [
+      $('skills-orbit-0'),
+      $('skills-orbit-1'),
+      $('skills-orbit-2'),
+      $('skills-orbit-3'),
+    ];
+
+    skillCards.forEach((card, i) => {
+      const orbit = orbits[i % 4];
+      if (!orbit) return;
+
+      const title = card.querySelector('.skill-card-title')?.textContent.trim() || '';
+      const chips = Array.from(card.querySelectorAll('.chip')).map(c => c.textContent.trim());
+
+      orbit.innerHTML = `
+        <div class="orbit-category-label">${esc(title)}</div>
+        <div class="orbit-chips">
+          ${chips.map(c => `<span class="orbit-chip">${esc(c)}</span>`).join('')}
+        </div>
+      `;
+    });
+  },
+
+  // Create dot indicators for projects
+  buildProjectDots() {
+    const dots = $('projects-dots');
+    if (!dots) return;
+    const slides = document.querySelectorAll('.project-slide');
+    dots.innerHTML = Array.from(slides).map((_, i) =>
+      `<span class="proj-dot${i === 0 ? ' active' : ''}" aria-label="Project ${i + 1}"></span>`
+    ).join('');
+  },
+
+  // Update nav active state when scene changes
+  onSceneChange(idx) {
+    this.currentScene = idx;
+
+    const sceneToHref = {
+      0: null,
+      1: '#about',
+      2: '#projects',
+      3: '#skills',
+      4: '#experience',
+      5: '#contact-section',
+    };
+
+    document.querySelectorAll('.nav-links a').forEach(a => {
+      a.classList.toggle('active', a.getAttribute('href') === sceneToHref[idx]);
+    });
+
+    const nav = $('main-nav');
+    if (nav) {
+      nav.classList.toggle('scrolled', idx > 0);
+    }
+  },
+
+  // Single mousemove listener — branches by scene
+  initMouseTracking() {
+    if (prefersReducedMotion || window.innerWidth < 768) return;
+
+    const speeds = [0.03, 0.02, 0.04, 0.025, 0.035, 0.015, 0.03];
+
+    document.addEventListener('mousemove', (e) => {
+      const cx = window.innerWidth / 2;
+      const cy = window.innerHeight / 2;
+      const dx = (e.clientX - cx) / cx;
+      const dy = (e.clientY - cy) / cy;
+
+      switch (this.currentScene) {
+        case 0: // Hero: float element parallax
+          document.querySelectorAll('.float-el').forEach((el, i) => {
+            gsap.to(el, {
+              x: dx * speeds[i % speeds.length] * 100,
+              y: dy * speeds[i % speeds.length] * 100,
+              duration: 1.2,
+              ease: 'power2.out',
+            });
+          });
+          break;
+
+        case 1: // About: mouse circle + shape drift
+          gsap.to('#about-mouse-circle', {
+            left: e.clientX,
+            top:  e.clientY,
+            duration: 0.75,
+            ease: 'power2.out',
+          });
+          gsap.to('.about-shape-left', {
+            x: dx * 16,
+            y: dy * 10,
+            rotation: dx * 2.5,
+            duration: 1.5,
+            ease: 'power2.out',
+          });
+          break;
+
+        case 3: // Skills: orbit wobble
+          document.querySelectorAll('.skills-orbit').forEach((orbit, i) => {
+            const xs = [0, 22, 0, -22];
+            const ys = [-22, 0, 22, 0];
+            gsap.to(orbit, {
+              x: dx * xs[i],
+              y: dy * ys[i],
+              duration: 1.2,
+              ease: 'power2.out',
+            });
+          });
+          break;
+
+        case 5: // Contact: ambient glow follows cursor
+          const ambient = document.querySelector('.contact-ambient');
+          if (ambient) {
+            ambient.style.background = `radial-gradient(circle 450px at ${e.clientX}px ${e.clientY}px, rgba(196,163,90,0.06) 0%, transparent 70%)`;
+          }
+          break;
+      }
+    });
+  },
+
+  // Gold particle system on the hero canvas
+  initParticleCanvas() {
+    const canvas = $('hero-particles');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+
+    const resize = () => {
+      canvas.width  = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+    resize();
+    window.addEventListener('resize', resize);
+
+    const particles = Array.from({ length: 55 }, () => ({
+      x:   Math.random() * canvas.width,
+      y:   Math.random() * canvas.height + canvas.height * 0.3,
+      vy:  -(Math.random() * 0.45 + 0.15),
+      vx:  (Math.random() - 0.5) * 0.18,
+      size:    Math.random() * 1.8 + 0.4,
+      opacity: Math.random() * 0.45 + 0.08,
+    }));
+
+    let rafId;
+    const animate = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particles.forEach(p => {
+        p.y += p.vy;
+        p.x += p.vx;
+        if (p.y < -10) {
+          p.y = canvas.height + 10;
+          p.x = Math.random() * canvas.width;
+        }
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(196, 163, 90, ${p.opacity})`;
+        ctx.fill();
+      });
+      rafId = requestAnimationFrame(animate);
+    };
+    animate();
+
+    // Stop when hero scene hides
+    this._stopParticles = () => {
+      cancelAnimationFrame(rafId);
+    };
+  },
+
+  // Intercept nav links to lenis.scrollTo() instead of native jump
+  initSceneNav() {
+    const isMobile = window.innerWidth < 768;
+    const totalVH = this.scrollVH;
+
+    // Map section IDs to scroll positions (in vh), aligned to piecewise breakpoints.
+    // Each target lands ~30% into its scene so the content is clearly visible on arrival.
+    const sectionToVH = {
+      '#about':           Math.round(totalVH * 0.18),
+      '#projects':        Math.round(totalVH * 0.34),
+      '#skills':          Math.round(totalVH * 0.60),
+      '#experience':      Math.round(totalVH * 0.75),
+      '#contact-section': Math.round(totalVH * 0.90),
+      '#education':       Math.round(totalVH * 0.90),
+    };
+
+    const scrollTo = (href) => {
+      const target = sectionToVH[href];
+      if (target === undefined) return;
+      const targetPx = (target / 100) * window.innerHeight;
+      if (this.lenis) {
+        this.lenis.scrollTo(targetPx, {
+          duration: 1.4,
+          easing: (t) => 1 - Math.pow(1 - t, 4),
+        });
+      } else {
+        window.scrollTo({ top: targetPx, behavior: 'smooth' });
+      }
+    };
+
+    document.querySelectorAll('.nav-links a, .mobile-nav a').forEach(link => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        scrollTo(link.getAttribute('href'));
+        // Close mobile nav
+        const ham = $('hamburger');
+        const mob = $('mobile-nav');
+        if (ham && mob) {
+          ham.classList.remove('open');
+          mob.classList.remove('open');
+          document.body.style.overflow = '';
+        }
+      });
+    });
+
+    // Logo scrolls to top
+    const logo = $('nav-logo');
+    if (logo) {
+      logo.addEventListener('click', () => {
+        if (this.lenis) {
+          this.lenis.scrollTo(0, { duration: 1.4 });
+        } else {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      });
+    }
+
+    // Hero CTAs pointing to #projects
+    const cta1 = $('hero-cta1-el');
+    if (cta1) {
+      cta1.addEventListener('click', (e) => {
+        if (cta1.getAttribute('href') === '#projects') {
+          e.preventDefault();
+          scrollTo('#projects');
+        }
+      });
+    }
+  },
+
+  // Re-run after admin save or data reset
+  reinitAfterSave() {
+    if (!this.active) return;
+
+    // Clean up scroll driver before rebuild
+    if (this._scrollHandler) {
+      window.removeEventListener('scroll', this._scrollHandler);
+      this._scrollHandler = null;
+    }
+    if (this._tickerFn) {
+      gsap.ticker.remove(this._tickerFn);
+      this._tickerFn = null;
+    }
+    this._targetProg = 0;
+    this._currProg   = 0;
+
+    ScrollTrigger.getAll().forEach(st => st.kill());
+    this.masterTL = null;
+
+    // Re-apply SplitType now content is fresh
+    initSplitType();
+
+    // Reset skills-orbit and project dots
+    this.syncSkillsOrbit();
+    this.buildProjectDots();
+
+    // Reset scene visibility
+    gsap.set('.scene', { opacity: 0, visibility: 'hidden', clearProps: 'clipPath,filter,scale,x,y' });
+    gsap.set('#scene-hero', { opacity: 1, visibility: 'visible' });
+
+    // Reset contact-main
+    gsap.set('#contact-main', { opacity: 0, visibility: 'hidden' });
+
+    // Scroll to top
+    if (this.lenis) {
+      this.lenis.scrollTo(0, { immediate: true });
+    } else {
+      window.scrollTo(0, 0);
+    }
+
+    // Rebuild timeline
+    requestAnimationFrame(() => {
+      this.buildMasterTimeline();
+      ScrollTrigger.refresh();
+    });
+  },
+
+  // Fallback for prefers-reduced-motion: unwind scene system, use standard scroll
+  initReducedMotionFallback() {
+    const sc = $('scroll-container');
+    if (sc) sc.style.display = 'none';
+
+    const fs = $('fixed-scenes');
+    if (fs) {
+      fs.style.position = 'static';
+      fs.style.height   = 'auto';
+      fs.style.overflow = 'visible';
+    }
+
+    document.querySelectorAll('.scene').forEach(s => {
+      s.style.position   = 'static';
+      s.style.opacity    = '1';
+      s.style.visibility = 'visible';
+      s.style.height     = 'auto';
+      s.style.minHeight  = '100vh';
+      s.style.overflow   = 'visible';
+    });
+
+    // Show actual skills grid instead of orbits
+    const skillsEl = $('skills-el');
+    if (skillsEl) skillsEl.style.display = 'grid';
+
+    // Contact-main always visible
+    const cm = $('contact-main');
+    if (cm) {
+      cm.style.position   = 'static';
+      cm.style.opacity    = '1';
+      cm.style.visibility = 'visible';
+    }
+
+    // Contact-prelude always visible
+    const cp = $('contact-prelude');
+    if (cp) {
+      cp.style.position = 'static';
+      cp.style.overflow = 'visible';
+      cp.style.height   = 'auto';
+    }
+
+    // Use standard Lenis for smooth native scroll
+    initLenis();
+
+    // Run original animation fallbacks
+    initHeroAnimations();
+    initSectionAnimations();
+    initProjectsGallery();
+    initNavScroll();
+  },
+};
+
+
+/* ═══════════════════════════════════════════
    SECTION SCROLL ANIMATIONS
+   (Reduced-motion fallback only — guarded when
+    SceneSystem is active)
    ═══════════════════════════════════════════ */
 function initSectionAnimations() {
+  if (SceneSystem.active) return;
   if (prefersReducedMotion) return;
 
   // ── ABOUT SECTION ──
@@ -956,8 +1980,12 @@ function initSectionAnimations() {
 
 /* ═══════════════════════════════════════════
    HORIZONTAL PROJECTS GALLERY
+   (Reduced-motion fallback only — guarded when
+    SceneSystem is active)
    ═══════════════════════════════════════════ */
 function initProjectsGallery() {
+  if (SceneSystem.active) return;
+
   const track = $('projects-el');
   if (!track) return;
 
@@ -965,7 +1993,6 @@ function initProjectsGallery() {
   if (!slides.length) return;
 
   if (prefersReducedMotion) {
-    // Show all slides without animation
     gsap.set(slides, { opacity: 1 });
     return;
   }
@@ -1046,13 +2073,17 @@ function initProjectsGallery() {
 
 /* ═══════════════════════════════════════════
    NAV SCROLL STATE
+   (Reduced-motion fallback only — guarded when
+    SceneSystem is active)
    ═══════════════════════════════════════════ */
 function initNavScroll() {
+  if (SceneSystem.active) return;
+
   const nav = $('main-nav');
   if (!nav) return;
 
   ScrollTrigger.create({
-    trigger: '.hero-section',
+    trigger: '#scene-hero',
     start: 'bottom 80%',
     onEnter: () => nav.classList.add('scrolled'),
     onLeaveBack: () => nav.classList.remove('scrolled'),
@@ -1412,33 +2443,34 @@ function collectFromAdmin() {
 
 async function saveAll() {
   DATA = collectFromAdmin();
+
+  // Apply changes to the page immediately, before the server responds
+  ScrollTrigger.getAll().forEach(st => st.kill());
+  renderPortfolio();
+  if (SceneSystem.active) {
+    SceneSystem.reinitAfterSave();
+  } else {
+    requestAnimationFrame(() => {
+      initSectionAnimations();
+      initProjectsGallery();
+      initCardTilt();
+      initMagneticButtons();
+      ScrollTrigger.refresh();
+    });
+  }
+  initCardTilt();
+  initMagneticButtons();
+
+  // Persist to server (best-effort)
   try {
     const res = await fetch('/api/data', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(DATA)
     });
-    if (res.ok) {
-      // Kill existing ScrollTriggers before re-rendering
-      ScrollTrigger.getAll().forEach(st => st.kill());
-
-      renderPortfolio();
-
-      // Re-initialize animations after re-render
-      requestAnimationFrame(() => {
-        initSectionAnimations();
-        initProjectsGallery();
-        initCardTilt();
-        initMagneticButtons();
-        ScrollTrigger.refresh();
-      });
-
-      showToast('✓ Changes saved and applied!');
-    } else {
-      showToast('❌ Failed to save data');
-    }
+    showToast(res.ok ? '✓ Changes saved!' : '⚠ Applied locally — server error, changes may not persist');
   } catch (err) {
-    showToast('❌ Error saving data');
+    showToast('⚠ Applied locally — server unreachable, changes may not persist');
   }
 }
 
@@ -1456,13 +2488,21 @@ async function resetDefaults() {
   ScrollTrigger.getAll().forEach(st => st.kill());
   buildAdminUI();
   renderPortfolio();
-  requestAnimationFrame(() => {
-    initSectionAnimations();
-    initProjectsGallery();
-    initCardTilt();
-    initMagneticButtons();
-    ScrollTrigger.refresh();
-  });
+
+  if (SceneSystem.active) {
+    SceneSystem.reinitAfterSave();
+  } else {
+    requestAnimationFrame(() => {
+      initSectionAnimations();
+      initProjectsGallery();
+      initCardTilt();
+      initMagneticButtons();
+      ScrollTrigger.refresh();
+    });
+  }
+
+  initCardTilt();
+  initMagneticButtons();
   showToast('↺ Reset to defaults.');
 }
 
@@ -1579,49 +2619,56 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadData();
   renderPortfolio();
 
-  // Initialize Lenis smooth scroll
-  initLenis();
+  // Apply SplitType now that DOM has content
+  initSplitType();
 
-  // Start typewriter
+  // Initialize SceneSystem (or its reduced-motion fallback)
+  // This replaces initLenis() for the scene path
+  SceneSystem.init();
+
+  // Typewriter
   typewrite();
 
   // Mobile nav
   initMobileNav();
 
-  // Preloader → then animations
+  // Preloader → then kick off everything
   initPreloader(() => {
-    // After preloader completes:
+    // Hero enter animation (unchanged — plays on preloader exit)
     initHeroAnimations();
-    initHeroParallax();
+    initHeroParallax(); // guarded inside; delegates to SceneSystem when active
     initCursor();
 
-    // Delay section animations slightly to allow ScrollTrigger to calculate positions
-    requestAnimationFrame(() => {
-      initSectionAnimations();
-      initProjectsGallery();
-      initNavScroll();
-      initCardTilt();
-      initMagneticButtons();
+    if (SceneSystem.active) {
+      // Scene path: build master timeline, sync data, wire nav
+      SceneSystem.syncSkillsOrbit();
+      SceneSystem.buildProjectDots();
 
-      // Refresh ScrollTrigger after everything is set up
-      ScrollTrigger.refresh();
-    });
+      requestAnimationFrame(() => {
+        SceneSystem.buildMasterTimeline();
+        SceneSystem.initSceneNav();
+        initCardTilt();
+        initMagneticButtons();
+        ScrollTrigger.refresh();
+      });
+    } else {
+      // Reduced-motion / fallback path: standard scroll animations
+      requestAnimationFrame(() => {
+        initSectionAnimations();
+        initProjectsGallery();
+        initNavScroll();
+        initCardTilt();
+        initMagneticButtons();
+        ScrollTrigger.refresh();
+      });
+    }
   });
 
-  // Close modal on overlay click
+  // Close modals on overlay click
   $('adminModal').addEventListener('click', function (e) {
     if (e.target === this) closeAdmin();
   });
   $('passwordModal').addEventListener('click', function (e) {
     if (e.target === this) closePasswordModal();
-  });
-
-  // Handle resize — refresh ScrollTrigger
-  let resizeTimeout;
-  window.addEventListener('resize', () => {
-    clearTimeout(resizeTimeout);
-    resizeTimeout = setTimeout(() => {
-      ScrollTrigger.refresh();
-    }, 300);
   });
 });

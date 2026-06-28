@@ -60,9 +60,13 @@ body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   line-height: 1.7;
   overflow-x: hidden;
+  scrollbar-width: none;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   cursor: none;
+}
+body::-webkit-scrollbar {
+  display: none;
 }
 
 /* Noise texture overlay */
@@ -617,7 +621,6 @@ a { color: inherit; text-decoration: none; }
 
 .hero-name .char {
   display: inline-block;
-  opacity: 0;
 }
 
 .hero-name .accent-word {
@@ -1823,4 +1826,711 @@ footer {
 /* Hide on mobile to avoid layout clutter */
 @media (max-width: 768px) {
   .social-sidebar { display: none; }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   SCENE SYSTEM FOUNDATION
+   Virtual-scroll + fixed-viewport scene architecture.
+   A phantom #scroll-container drives the scroll height;
+   #fixed-scenes holds all scenes as absolute overlays.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Phantom height driver — invisible, just sets body scroll height */
+#scroll-container {
+  height: 800vh;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+/* Fixed fullscreen canvas for all scenes */
+#fixed-scenes {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  z-index: 2;
+}
+
+/* Each scene is an absolute full-viewport layer */
+.scene {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  will-change: transform, opacity;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Background layer inside each scene */
+.scene-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+
+/* ── SCENE 0: HERO ── */
+#scene-hero {
+  text-align: center;
+  flex-direction: column;
+}
+
+#hero-particles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* hero-scene-bg is the hero-bg equivalent, handled by .scene-bg */
+.hero-scene-bg {
+  background: radial-gradient(ellipse 120% 80% at 50% 110%,
+    rgba(196, 163, 90, 0.07) 0%, var(--bg) 60%);
+}
+
+/* hero-floating needs to be absolutely positioned within the scene */
+.hero-floating {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+
+/* ── SCENE 1: ABOUT ── */
+.about-scene-bg {
+  background: var(--bg);
+}
+
+.about-glow-bloom {
+  position: absolute;
+  width: 700px;
+  height: 700px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(196, 163, 90, 0.14) 0%, transparent 70%);
+  bottom: -250px;
+  left: -200px;
+  filter: blur(70px);
+  will-change: transform, opacity;
+  pointer-events: none;
+}
+
+.about-shape-left {
+  position: absolute;
+  left: 4%;
+  top: 50%;
+  transform: translateY(-50%);
+  width: min(32vw, 380px);
+  height: min(32vw, 380px);
+  border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
+  border: 1px solid rgba(196, 163, 90, 0.06);
+  background: rgba(196, 163, 90, 0.018);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  will-change: transform;
+  pointer-events: none;
+}
+
+.about-scene-watermark {
+  position: absolute;
+  bottom: 1.5rem;
+  left: clamp(1.5rem, 5vw, 5rem);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: clamp(4rem, 14vw, 11rem);
+  font-weight: 700;
+  color: rgba(196, 163, 90, 0.022);
+  line-height: 1;
+  pointer-events: none;
+  letter-spacing: -6px;
+  white-space: nowrap;
+  z-index: 0;
+}
+
+.about-scene-inner {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: var(--max-width);
+  padding: 0 clamp(1.5rem, 5vw, 5rem);
+}
+
+.about-scene-content {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: clamp(2rem, 5vw, 5rem);
+  align-items: start;
+}
+
+.about-bio-col .section-heading {
+  margin-bottom: 1.8rem;
+  overflow: hidden;
+}
+
+/* Clip each line for reveal */
+.about-text p {
+  overflow: hidden;
+  margin-bottom: 1.2rem;
+}
+
+.about-text .line {
+  display: block;
+  transform: translateY(100%);
+  opacity: 0;
+}
+
+.about-interests-col {
+  padding-top: 0.5rem;
+}
+
+.about-mouse-circle {
+  position: absolute;
+  width: 280px;
+  height: 280px;
+  border-radius: 50%;
+  border: 1px solid rgba(196, 163, 90, 0.05);
+  pointer-events: none;
+  z-index: 1;
+  transform: translate(-50%, -50%);
+  will-change: transform;
+  opacity: 0;
+}
+
+
+/* ── SCENE 2: PROJECTS ── */
+.projects-scene-bg {
+  background: var(--bg);
+  transition: background 0.8s ease;
+}
+
+.projects-scene-header {
+  position: absolute;
+  top: clamp(1.5rem, 3vw, 2.5rem);
+  left: 0;
+  right: 0;
+  padding: 0 clamp(1.5rem, 5vw, 5rem);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 10;
+}
+
+.projects-progress-dots {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.proj-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(196, 163, 90, 0.2);
+  transition: background 0.3s, transform 0.3s;
+  cursor: pointer;
+}
+
+.proj-dot.active {
+  background: var(--accent);
+  transform: scale(1.6);
+}
+
+.projects-gallery-viewport {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+
+/* Override: projects-track is now a flex row inside the gallery viewport */
+#projects-el.projects-track {
+  display: flex;
+  flex-direction: row;
+  gap: 3vw;
+  padding: 0 8vw;
+  will-change: transform;
+  flex-shrink: 0;
+  align-items: center;
+  /* no overflow — parent clips */
+}
+
+.project-slide {
+  flex-shrink: 0;
+  width: 78vw;
+  min-width: unset;
+  height: 78vh;
+  min-height: unset;
+  margin-right: 0; /* gap now handled by flex gap */
+  border-radius: 24px;
+  transform-style: preserve-3d;
+  will-change: transform, opacity, filter;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: clamp(2rem, 4vw, 4rem);
+}
+
+.project-slide:first-child { margin-left: 0; }
+.project-slide:last-child  { margin-right: 0; }
+
+/* Ghost perspective cards at edges */
+.proj-prev-ghost,
+.proj-next-ghost {
+  position: absolute;
+  top: 50%;
+  width: 10vw;
+  height: 58vh;
+  border-radius: 16px;
+  border: 1px solid rgba(196, 163, 90, 0.05);
+  background: linear-gradient(135deg, rgba(196,163,90,0.02), rgba(196,163,90,0.005));
+  pointer-events: none;
+  z-index: 3;
+  will-change: opacity;
+}
+
+.proj-prev-ghost {
+  left: 1.5vw;
+  transform: translateY(-50%) perspective(1200px) rotateY(28deg) scaleY(0.82);
+  transform-origin: left center;
+}
+
+.proj-next-ghost {
+  right: 1.5vw;
+  transform: translateY(-50%) perspective(1200px) rotateY(-28deg) scaleY(0.82);
+  transform-origin: right center;
+}
+
+/* Progress bar position update for scene */
+.scene .projects-progress {
+  position: absolute;
+  bottom: 1.8rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+}
+
+
+/* ── SCENE 3: SKILLS ── */
+.skills-scene-bg {
+  background: var(--bg);
+}
+
+/* Concentric rings centered in scene */
+.skills-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(196, 163, 90, 0.055);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  will-change: transform, opacity;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.skills-ring--1 { width: 130px;  height: 130px; }
+.skills-ring--2 { width: 280px;  height: 280px; border-color: rgba(196,163,90,0.045); }
+.skills-ring--3 { width: 480px;  height: 480px; border-color: rgba(196,163,90,0.035); }
+.skills-ring--4 { width: 680px;  height: 680px; border-color: rgba(196,163,90,0.025); }
+.skills-ring--5 { width: 920px;  height: 920px; border-color: rgba(196,163,90,0.015); }
+
+.skills-center-label {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: clamp(0.55rem, 1vw, 0.75rem);
+  font-weight: 700;
+  letter-spacing: 8px;
+  text-transform: uppercase;
+  color: var(--accent);
+  z-index: 10;
+  opacity: 0;
+  will-change: opacity;
+  white-space: nowrap;
+}
+
+/* Cardinal orbit containers */
+.skills-orbit {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.7rem;
+  z-index: 5;
+  will-change: transform, opacity;
+  opacity: 0;
+}
+
+.skills-orbit--top {
+  top: clamp(1rem, 5vh, 4rem);
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.skills-orbit--right {
+  right: clamp(1rem, 3vw, 3rem);
+  top: 50%;
+  transform: translateY(-50%);
+  align-items: flex-start;
+}
+
+.skills-orbit--bottom {
+  bottom: clamp(1rem, 5vh, 4rem);
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.skills-orbit--left {
+  left: clamp(1rem, 3vw, 3rem);
+  top: 50%;
+  transform: translateY(-50%);
+  align-items: flex-end;
+}
+
+.orbit-category-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6rem;
+  color: var(--accent);
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  margin-bottom: 0.2rem;
+  opacity: 0.85;
+}
+
+.orbit-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  justify-content: center;
+  max-width: 240px;
+}
+
+.orbit-chip {
+  background: rgba(196, 163, 90, 0.06);
+  color: var(--text-secondary);
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  border: 1px solid rgba(196, 163, 90, 0.08);
+  transition: all 0.3s ease;
+  font-family: 'Inter', sans-serif;
+  cursor: default;
+}
+
+.orbit-chip:hover {
+  background: rgba(196, 163, 90, 0.12);
+  border-color: rgba(196, 163, 90, 0.2);
+  color: var(--accent-light);
+}
+
+
+/* ── SCENE 4: EXPERIENCE ── */
+.experience-scene-bg {
+  background: var(--bg);
+}
+
+.exp-timeline-lines {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 79px,
+    rgba(196, 163, 90, 0.02) 80px
+  );
+  opacity: 0;
+  will-change: opacity;
+  pointer-events: none;
+}
+
+.exp-scene-inner {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: var(--max-width);
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 5.5rem clamp(1.5rem, 5vw, 5rem) 3rem;
+  scrollbar-width: none;
+}
+
+.exp-scene-inner::-webkit-scrollbar { display: none; }
+
+.exp-heading {
+  margin-bottom: 2.5rem;
+  overflow: hidden;
+}
+
+
+/* ── SCENE 5: CONTACT ── */
+.contact-scene-bg {
+  background: radial-gradient(
+    ellipse 80% 70% at 50% 50%,
+    rgba(196, 163, 90, 0.08) 0%,
+    rgba(196, 163, 90, 0.025) 40%,
+    var(--bg) 75%
+  );
+}
+
+/* Cinematic light rays */
+.contact-ray {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 1px;
+  height: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(196, 163, 90, 0) 0%,
+    rgba(196, 163, 90, 0.25) 40%,
+    rgba(196, 163, 90, 0) 100%
+  );
+  transform-origin: top center;
+  will-change: height, opacity;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.contact-ray--1 { transform: translateX(-50%) rotate(-32deg); }
+.contact-ray--2 { transform: translateX(-50%) rotate(0deg); width: 1.5px; }
+.contact-ray--3 { transform: translateX(-50%) rotate(32deg); }
+
+.contact-ambient {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle 500px at 50% 50%,
+    rgba(196, 163, 90, 0.04) 0%,
+    transparent 70%
+  );
+  animation: ambientPulse 7s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+@keyframes ambientPulse {
+  0%   { opacity: 0.5; transform: scale(0.94); }
+  100% { opacity: 1;   transform: scale(1.06); }
+}
+
+/* Act 1: Education + What's Next prelude */
+.contact-prelude {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow-y: auto;
+  scrollbar-width: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  will-change: transform, opacity;
+}
+
+.contact-prelude::-webkit-scrollbar { display: none; }
+
+.contact-prelude-inner {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(2rem, 4vw, 4rem);
+  width: 100%;
+  max-width: var(--max-width);
+  padding: 5rem clamp(1.5rem, 5vw, 5rem) 3rem;
+  align-items: start;
+}
+
+.prelude-col {}
+
+.prelude-heading {
+  margin-bottom: 2rem;
+}
+
+/* Act 2: Main contact CTA */
+.contact-main {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2rem;
+  will-change: transform, opacity;
+  opacity: 0;
+  visibility: hidden;
+}
+
+.contact-scene-label {
+  margin-bottom: 1.5rem;
+}
+
+/* Override contact heading for scene (no opacity:0 default — GSAP handles) */
+.contact-main .contact-heading {
+  opacity: 1;
+  font-size: clamp(2.8rem, 8vw, 7rem);
+  overflow: hidden;
+}
+
+.contact-main .contact-heading .char {
+  display: inline-block;
+}
+
+.contact-main .contact-tagline {
+  opacity: 1;
+}
+
+.contact-main .contact-links {
+  opacity: 1;
+}
+
+/* Footer inside scene */
+.contact-main footer {
+  position: relative;
+  z-index: 1;
+  margin-top: 3rem;
+  border-top: 1px solid var(--border);
+  width: 100%;
+  max-width: 600px;
+}
+
+/* edu-card reset for prelude use */
+.contact-prelude .edu-card {
+  opacity: 1;
+  transform: none;
+}
+
+/* next-card reset for prelude use */
+.contact-prelude .next-card {
+  opacity: 1;
+  transform: none;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   SCENE SYSTEM — MOBILE OVERRIDES
+   ═══════════════════════════════════════════════════════════════ */
+@media (max-width: 900px) {
+  .about-scene-content {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+
+  .about-shape-left { display: none; }
+
+  .skills-orbit--left,
+  .skills-orbit--right { display: none; }
+
+  .project-slide {
+    width: 86vw;
+    height: 72vh;
+  }
+
+  .contact-prelude-inner {
+    grid-template-columns: 1fr;
+    gap: 2.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  #scroll-container {
+    height: 600vh; /* reduced for mobile — JS will override this dynamically */
+  }
+
+  .about-scene-watermark { display: none; }
+
+  .project-slide {
+    width: 90vw;
+    height: 68vh;
+    border-radius: 16px;
+  }
+
+  .proj-prev-ghost,
+  .proj-next-ghost { display: none; }
+
+  .skills-orbit--top {
+    top: 1.5rem;
+  }
+
+  .skills-orbit--bottom {
+    bottom: 1.5rem;
+  }
+
+  .skills-ring--4,
+  .skills-ring--5 { display: none; }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   SCENE SYSTEM — REDUCED MOTION FALLBACK
+   Unwinds the scene system entirely so it becomes standard scroll
+   ═══════════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  #scroll-container { display: none !important; }
+
+  #fixed-scenes {
+    position: static !important;
+    height: auto !important;
+    overflow: visible !important;
+    display: block !important;
+  }
+
+  .scene {
+    position: static !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    height: auto !important;
+    min-height: 100vh;
+    display: flex !important;
+    overflow: visible !important;
+  }
+
+  .scene-bg { display: none; }
+
+  .about-mouse-circle,
+  .proj-prev-ghost,
+  .proj-next-ghost,
+  .skills-ring,
+  .skills-center-label,
+  .skills-orbit,
+  .contact-ray,
+  .contact-ambient { display: none !important; }
+
+  #skills-el { display: grid !important; }
+
+  .contact-main {
+    position: static !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+
+  .contact-prelude {
+    position: static !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  .contact-prelude-inner {
+    padding-top: 4rem;
+  }
+
+  .exp-scene-inner {
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  .hero-floating { display: none; }
 }
